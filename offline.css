@@ -1,0 +1,148 @@
+/* オフライン・同期 UI */
+
+.sakura-offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 10050;
+  display: none;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 16px 12px;
+  border-bottom: 1px solid rgba(255, 200, 120, 0.35);
+  background: linear-gradient(135deg, rgba(45, 32, 18, 0.97), rgba(28, 22, 14, 0.98));
+  color: #f5e6c8;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+.sakura-offline-banner.is-visible {
+  display: block;
+}
+
+.sakura-offline-banner__title {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sakura-offline-banner__body {
+  opacity: 0.92;
+  font-size: 0.88rem;
+}
+
+.sakura-offline-banner__meta {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.sakura-offline-banner__actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.sakura-offline-banner button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 210, 140, 0.45);
+  background: rgba(255, 230, 180, 0.12);
+  color: #fff8e8;
+}
+
+.sakura-offline-banner button:hover {
+  background: rgba(255, 230, 180, 0.2);
+}
+
+.sakura-offline-banner.is-online {
+  border-bottom-color: rgba(120, 200, 255, 0.35);
+  background: linear-gradient(135deg, rgba(18, 35, 48, 0.96), rgba(14, 28, 38, 0.98));
+}
+
+.sakura-offline-banner.is-syncing {
+  border-bottom-color: rgba(180, 220, 255, 0.4);
+}
+
+.sakura-offline-banner.is-error {
+  border-bottom-color: rgba(255, 120, 120, 0.45);
+  background: linear-gradient(135deg, rgba(48, 22, 22, 0.96), rgba(32, 14, 14, 0.98));
+}
+
+.sakura-offline-sync-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.sakura-offline-sync-overlay.is-visible {
+  display: flex;
+}
+
+.sakura-offline-sync-card {
+  min-width: min(92vw, 360px);
+  max-width: 420px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: #1a1410;
+  border: 1px solid rgba(255, 210, 140, 0.25);
+  color: #f5e6c8;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.sakura-offline-sync-card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.sakura-offline-progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin: 8px 0 10px;
+}
+
+.sakura-offline-progress-bar > span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #6ec4ff, #ffd658);
+  transition: width 0.25s ease;
+}
+
+.sakura-offline-panel {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 0.8rem;
+  max-height: 140px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sakura-offline-panel ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sakura-offline-progress-bar > span {
+    transition: none;
+  }
+}

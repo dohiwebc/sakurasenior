@@ -1,0 +1,2137 @@
+<!doctype html>
+<html lang="ja" data-site-page="goals">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAKURA GROUP MATCH LOG</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#0b0b0b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="SAKURA LOG" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Serif+JP:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css?v=sakura-site-v32" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <script src="https://www.gstatic.com/firebasejs/12.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/12.12.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="./accordion.js"></script>
+    <link rel="stylesheet" href="./site-nav.css?v=sakura-site-v21" />
+    <link rel="stylesheet" href="./match-notice-overlay.css" />
+    <link rel="stylesheet" href="./trash-panel.css" />
+    <link rel="stylesheet" href="./offline.css" />
+    <link rel="stylesheet" href="./tutorial.css?v=sakura-site-v21" />
+    <style>
+      :root {
+        --bg: #060606;
+        --panel: rgba(255, 255, 255, 0.04);
+        --panel-strong: rgba(255, 255, 255, 0.07);
+        --border: rgba(255, 214, 88, 0.28);
+        --text: #f8f3df;
+        --muted: #beb28a;
+        --accent: #f0b90b;
+        --accent-strong: #ffd658;
+        --ok: #80d8a8;
+        --warn: #ffd166;
+        --bad: #ff7d7d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        overflow-x: hidden;
+      }
+      .container { max-width: 1400px; margin: 0 auto; padding: 6px 16px 12px; display: grid; gap: 12px; }
+      #goalsWorkspace {
+        display: grid;
+        gap: 12px;
+      }
+      .goals-dependent-section.goals-dependent-section--inactive {
+        opacity: 0.48;
+        pointer-events: none;
+      }
+      .goals-pick-player-hint {
+        margin: 0;
+        color: var(--muted);
+      }
+      .card {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 12px;
+        background:
+          linear-gradient(155deg, rgba(255, 255, 255, 0.04) 0%, transparent 38%),
+          linear-gradient(180deg, rgba(16, 16, 18, 0.82), rgba(5, 5, 7, 0.9));
+        backdrop-filter: saturate(125%) blur(20px);
+        -webkit-backdrop-filter: saturate(125%) blur(20px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      }
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(125deg, rgba(255, 255, 255, 0.028), transparent 52%);
+        pointer-events: none;
+      }
+      #loginInfoCard.card.login-info-floating {
+        padding: 8px 10px;
+        border-radius: 12px;
+      }
+      #loginInfoCard .login-info-accordion-button {
+        min-height: 30px;
+        padding: 4px 8px;
+        font-size: 0.82rem;
+      }
+      #loginInfoCard #modeText {
+        margin: 2px 0 0;
+        font-size: 0.76rem;
+        line-height: 1.25;
+      }
+      #loginInfoCard .sub-btn {
+        min-height: 30px;
+        padding: 4px 8px;
+        font-size: 0.72rem;
+      }
+      #loginInfoCard #loginInfoAccordionBody .login-actions {
+        margin-top: 6px !important;
+      }
+      .top-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+      .brand { font-size: 18px; font-weight: 700; color: var(--accent-strong); letter-spacing: 0.04em; }
+      .bell {
+        display: inline-flex; align-items: center; gap: 8px;
+        border: 1px solid rgba(255,255,255,0.18); border-radius: 999px; padding: 7px 12px;
+        background: rgba(255,255,255,0.05); font-size: 13px;
+      }
+      .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+      label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+      input, select, button {
+        min-height: 34px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.06); color: var(--text); padding: 6px 10px; font: inherit;
+      }
+      button { cursor: pointer; }
+      .danger { border-color: rgba(255, 110, 110, 0.45); color: #ffd6d6; }
+      .accordion-btn {
+        width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center;
+        font-size: 18px; color: var(--accent-strong);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .accordion-btn span:last-child {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.2em;
+        transition: transform 0.22s ease, opacity 0.22s ease;
+      }
+      .accordion-btn span:last-child.is-changing {
+        opacity: 0.25;
+        transform: scale(0.86) rotate(90deg);
+      }
+      .hidden { display: none !important; }
+      .goal-list { display: grid; gap: 8px; margin-top: 10px; }
+      .goal-item { border: 1px solid rgba(255,255,255,0.16); border-radius: 12px; padding: 10px; background: rgba(0,0,0,0.18); }
+      .goal-item .head { display: flex; gap: 8px; justify-content: space-between; align-items: start; }
+      .goal-item .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+      .status { display: inline-block; border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.02em; }
+      .status.achieved {
+        border: 1px solid rgba(250, 204, 21, 0.72);
+        background: linear-gradient(135deg, rgba(250,204,21,0.34), rgba(148,163,184,0.22));
+        color: #fff2b4;
+        box-shadow: 0 0 0 1px rgba(250,204,21,0.28) inset, 0 8px 18px rgba(250,204,21,0.14);
+      }
+      .status.achieving {
+        border: 1px solid rgba(45, 212, 191, 0.56);
+        background: linear-gradient(135deg, rgba(45,212,191,0.2), rgba(45,212,191,0.08));
+        color: #c9fff4;
+      }
+      .status.progressing {
+        border: 1px solid rgba(248, 113, 113, 0.7);
+        background: linear-gradient(135deg, rgba(248,113,113,0.28), rgba(248,113,113,0.14));
+        color: #ffe1e1;
+      }
+      .achievement-banner {
+        margin-top: 8px;
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 13px;
+        font-weight: 700;
+        position: relative;
+      }
+      .achievement-banner i { margin-right: 6px; }
+      .achievement-banner.progressing {
+        border: 1px solid rgba(248, 113, 113, 0.6);
+        background: linear-gradient(135deg, rgba(248,113,113,0.22), rgba(248,113,113,0.09));
+        color: #fecaca;
+      }
+      .achievement-banner.achieving {
+        border: 1px solid rgba(45, 212, 191, 0.56);
+        background: linear-gradient(135deg, rgba(45,212,191,0.2), rgba(45,212,191,0.08));
+        color: #99f6e4;
+      }
+      .achievement-banner.achieved {
+        border: 1px solid rgba(250, 204, 21, 0.62);
+        background: linear-gradient(135deg, rgba(250,204,21,0.24), rgba(148,163,184,0.16));
+        color: #fde68a;
+        box-shadow: 0 0 0 1px rgba(250,204,21,0.25) inset, 0 12px 24px rgba(250,204,21,0.12);
+      }
+      .achievement-banner.achieved::before {
+        content: "";
+        position: absolute;
+        left: -1px;
+        top: -1px;
+        bottom: -1px;
+        width: 6px;
+        border-radius: 10px 0 0 10px;
+        background: linear-gradient(180deg, #fde68a, #f59e0b);
+      }
+      .graph-achievement {
+        margin-top: 8px;
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 13px;
+        font-weight: 700;
+        position: relative;
+      }
+      .graph-achievement.achieved {
+        border: 1px solid rgba(255, 214, 88, 0.6);
+        background: linear-gradient(135deg, rgba(255,214,88,0.22), rgba(255,214,88,0.09));
+        color: #ffe28a;
+        box-shadow: 0 0 0 1px rgba(250,204,21,0.25) inset, 0 12px 24px rgba(250,204,21,0.12);
+      }
+      .graph-achievement.achieved::before {
+        content: "";
+        position: absolute;
+        left: -1px;
+        top: -1px;
+        bottom: -1px;
+        width: 6px;
+        border-radius: 10px 0 0 10px;
+        background: linear-gradient(180deg, #fde68a, #f59e0b);
+      }
+      .graph-achievement.challenging {
+        border: 1px solid rgba(45, 212, 191, 0.56);
+        background: linear-gradient(135deg, rgba(45,212,191,0.2), rgba(45,212,191,0.08));
+        color: #99f6e4;
+      }
+      .graph-achievement.progressing {
+        border: 1px solid rgba(248, 113, 113, 0.6);
+        background: linear-gradient(135deg, rgba(248,113,113,0.22), rgba(248,113,113,0.09));
+        color: #fecaca;
+      }
+      .goal-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+      .graphs { display: grid; gap: 10px; margin-top: 10px; }
+      .graph-card {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 12px;
+        padding: 10px;
+        background: linear-gradient(180deg, rgba(48, 48, 48, 0.32), rgba(18, 18, 18, 0.2));
+        background-color: rgba(12, 12, 12, 0.16);
+        backdrop-filter: saturate(130%) blur(14px);
+        -webkit-backdrop-filter: saturate(130%) blur(14px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+      .graph-body { min-height: 280px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+      @media (min-width: 1024px) {
+        #goalsWorkspace {
+          grid-template-columns: minmax(0, 3fr) minmax(0, 7fr);
+          align-items: start;
+        }
+        #tutorial-goals-player-section {
+          grid-column: 1 / -1;
+        }
+        #tutorial-goals-list-section {
+          grid-column: 1;
+          grid-row: 2;
+        }
+        #tutorial-goals-notice-section {
+          grid-column: 1;
+          grid-row: 3;
+        }
+        #tutorial-goals-graph-section {
+          grid-column: 2;
+          grid-row: 2 / span 2;
+        }
+      }
+      .notice-list { display: grid; gap: 8px; margin-top: 10px; }
+      .notice {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 12px;
+        padding: 10px;
+        background: rgba(18, 18, 18, 0.22);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      .notice.unread {
+        border-color: rgba(255, 214, 88, 0.45);
+        background: rgba(255, 214, 88, 0.06);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      .notice[data-notice-goal] { cursor: pointer; outline: none; }
+      .notice[data-notice-goal]:focus-visible {
+        box-shadow: inset 0 0 0 1px rgba(255, 214, 88, 0.55);
+      }
+      .help { color: var(--muted); font-size: 13px; }
+      /* 通知詳細(220)より上に確認・編集モーダルを出す */
+      .modal { position: fixed; inset: 0; display: grid; place-items: center; z-index: 230; }
+      .modal-backdrop { position: absolute; inset: 0; background: rgba(6,6,6,0.72); }
+      .modal-card {
+        position: relative; width: min(92vw, 520px); background: #15130f; border: 1px solid var(--border);
+        border-radius: 14px; padding: 12px; display: grid; gap: 8px;
+      }
+      .modal-card h3 { margin: 0; color: var(--accent-strong); }
+      .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+      /* 通知タップ用: site-nav 通知パネルに近い角張り（角丸なし・直線枠） */
+      .modal.goal-notice-detail-modal {
+        z-index: 220;
+      }
+      .goal-notice-detail-card {
+        width: min(94vw, 520px);
+        max-height: min(90vh, 760px);
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        overflow: hidden;
+        border-radius: 0;
+        background: #141414;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 12px 14px 12px;
+      }
+      @media (min-width: 769px) {
+        .goal-notice-detail-card {
+          width: min(96vw, 920px);
+          max-height: min(88vh, 820px);
+        }
+      }
+      .goal-notice-detail-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-shrink: 0;
+        margin: 0 -14px 10px;
+        padding: 0 14px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .goal-notice-detail-x {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 1.1rem;
+        line-height: 1;
+        min-width: 40px;
+        min-height: 40px;
+        padding: 0;
+        border-radius: 0;
+      }
+      .goal-notice-detail-x:hover {
+        color: var(--text);
+      }
+      /* 内容＋グラフを縦に並べ、全体はこのエリアだけ縦スクロール（PC） */
+      .goal-notice-detail-body {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 2px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .goal-notice-detail-summary {
+        flex-shrink: 0;
+      }
+      .goal-notice-chart-heading {
+        margin: 0;
+        padding: 8px 0 6px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: var(--accent-strong);
+        flex-shrink: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      /* グラフ周りだけ横スクロール（主にスマホで設計幅を確保） */
+      .goal-notice-chart-scroll {
+        flex-shrink: 0;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 0;
+      }
+      .goal-notice-chart-scroll .graph-body {
+        min-width: 0;
+      }
+      @media (max-width: 768px) {
+        /* オーバーレイ本文全体（内容+グラフ）を縦スクロール */
+        .goal-notice-detail-body {
+          overflow-y: auto;
+          overflow-x: hidden;
+          -webkit-overflow-scrolling: touch;
+        }
+        .goal-notice-detail-summary {
+          max-height: none;
+          overflow: visible;
+        }
+        .goal-notice-chart-scroll .graph-body {
+          min-width: 980px;
+        }
+        /* 進捗グラフ部分だけ横スクロール */
+        .goal-notice-chart-scroll {
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+        }
+        #goalNoticeDetailModal .goal-notice-chart-wrap {
+          width: 980px;
+          min-width: 980px;
+        }
+        #goalNoticeDetailModal .goal-notice-chart-scroll .graph-body svg {
+          display: block;
+          min-width: 980px;
+          width: 980px !important;
+          max-width: none;
+        }
+      }
+      .goal-notice-chart-wrap {
+        margin-top: 0;
+      }
+      #goalNoticeDetailModal .goal-notice-chart-wrap.graph-card {
+        border-radius: 0;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.22);
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+      .goal-notice-detail-article {
+        margin: 0;
+      }
+      #goalNoticeDetailModal .goal-notice-detail-summary .goal-item {
+        border-radius: 0;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.22);
+      }
+      .goal-notice-detail-modal .achievement-banner,
+      .goal-notice-detail-modal .graph-achievement,
+      .goal-notice-detail-modal .status {
+        border-radius: 0;
+      }
+      /* ページ共通の input,select,button の角丸をこのモーダル内だけ上書き */
+      #goalNoticeDetailModal button {
+        border-radius: 0;
+      }
+      .form-grid { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .form-grid .full { grid-column: 1 / -1; }
+      svg text { fill: var(--text); font-size: 11px; }
+      .axis path, .axis line { stroke: rgba(255,255,255,0.2); }
+      .tooltip {
+        position: fixed; pointer-events: none; background: rgba(0,0,0,0.86); color: #fff;
+        border: 1px solid rgba(255,255,255,0.24); border-radius: 8px; padding: 4px 8px; font-size: 12px; z-index: 60;
+      }
+      @media (max-width: 768px) {
+        .container { padding: 6px 10px 10px; gap: 10px; }
+        .card { padding: 10px; border-radius: 12px; }
+        .form-grid { grid-template-columns: 1fr; }
+        .controls { display: grid; grid-template-columns: 1fr; width: 100%; align-items: stretch; }
+        .controls label, .controls button, .controls select, .controls input { width: 100%; }
+        .top-nav { gap: 8px; }
+        .brand { font-size: 16px; }
+        .accordion-btn { font-size: 16px; }
+        .goal-item .head { flex-direction: column; align-items: flex-start; }
+        .status { margin-top: 4px; }
+        .goal-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+        .goal-actions button { width: 100%; }
+        .graph-card { padding: 8px; }
+        .graph-body { min-height: 220px; }
+        .modal-card { width: 94vw; padding: 10px; }
+      }
+
+      @media (max-width: 480px) {
+        body { font-size: 14px; }
+        .container { padding: 4px 8px 8px; gap: 8px; }
+        .card { padding: 9px; }
+        .brand { font-size: 15px; }
+        .bell { font-size: 12px; padding: 6px 10px; }
+        .goal-actions { grid-template-columns: 1fr; }
+        .achievement-banner, .graph-achievement { font-size: 12px; }
+        .graph-body { min-height: 200px; }
+        .graph-body svg {
+          min-width: 760px;
+          width: 760px !important;
+          max-width: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <section class="hero">
+        <h1>
+          SAKURA GROUP GOALS
+          <span class="title-translation">さくらグループ シニア目標管理</span>
+        </h1>
+        <p class="hero-page-label">目標</p>
+        <p class="hero-kicker">SENIER GOAL MANAGEMENT PLATFORM</p>
+        <p class="lead">
+          Track Your Progress Toward Success
+          <span class="lead-translation">目標達成への道のり</span>
+        </p>
+        <p class="hero-features-line">目標を設定 | 進捗をグラフで管理 | 達成をサポート</p>
+      </section>
+
+      <div class="access-urgent-banner" id="tutorial-goals-confidential-banner" role="alert">
+        <p class="access-urgent-label">重要・CONFIDENTIAL</p>
+        <p class="access-urgent-body">
+          このURL・サイトは<strong>チーム関係者のみ</strong>が利用する内部用です。<strong>第三者・他チーム・一般の方への共有・転送・SNS掲載は禁止</strong>です。漏えいが起きた場合は速やかに監督・スタッフへ報告してください。
+        </p>
+      </div>
+
+      <section id="loginInfoCard" class="card login-info-floating hidden">
+        <button id="loginInfoAccordionButton" class="accordion-button login-info-accordion-button" type="button">
+          <span>ログイン情報</span>
+          <span id="loginInfoAccordionIcon">＋</span>
+        </button>
+        <div id="loginInfoAccordionBody" class="hidden">
+          <p id="modeText" class="login-description no-margin"></p>
+          <div class="login-actions" style="margin-top: 8px">
+            <button type="button" id="goalsLogoutButton" class="sub-btn">ログアウト</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="loginCard" class="card">
+        <h2>
+          ACCESS
+          <span class="section-translation">アクセス</span>
+        </h2>
+        <p class="login-description">
+          利用するモードを選択してください。閲覧モードは成績確認、編集モードは記録の入力・更新ができます。
+        </p>
+        <div class="role-buttons">
+          <button type="button" id="viewerModeButton" class="sub-btn">
+            VIEW / 閲覧モード
+            <span class="button-translation">記録を閲覧する</span>
+          </button>
+          <button type="button" id="showStaffLoginButton" class="primary-btn">
+            EDIT / 編集モード
+            <span class="button-translation">記録を入力・編集する</span>
+          </button>
+        </div>
+        <div id="staffPasswordArea" class="form-grid hidden">
+          <label
+            >編集用パスワード
+            <input id="staffPasswordInput" type="password" placeholder="パスワードを入力" autocomplete="off" />
+          </label>
+          <div class="login-actions">
+            <button type="button" id="staffModeButton" class="primary-btn">編集モードに入る</button>
+          </div>
+        </div>
+        <p id="goalsLoginHint" class="login-description no-margin">
+          閲覧モードまたは編集モードのどちらかを選ぶと、下のコンテンツが表示されます。
+        </p>
+      </section>
+
+      <div id="goalsWorkspace" class="hidden" aria-hidden="true">
+      <div id="goalsTrashBar" class="goals-trash-bar hidden">
+        <span class="goals-trash-bar-title">目標管理</span>
+        <button type="button" id="goalsTrashOpenButton" class="trash-corner-btn" title="ゴミ箱" aria-label="ゴミ箱">
+          <span class="trash-corner-btn__glyph" aria-hidden="true"><i class="fa-regular fa-trash-can"></i></span>
+        </button>
+      </div>
+      <section class="card" id="tutorial-goals-player-section">
+        <button class="accordion-btn" data-target="playerBody">選手選択 <span>−</span></button>
+        <div id="playerBody">
+          <div class="controls" style="margin-top:10px;">
+            <label>選手<select id="playerSelect"></select></label>
+            <label>表示フィルタ
+              <select id="goalStatusFilter">
+                <option value="all">全ての目標</option>
+                <option value="achieved">目標達成</option>
+                <option value="not_achieved">目標未達のみ</option>
+              </select>
+            </label>
+          </div>
+          <p id="goalsPickPlayerHint" class="help goals-pick-player-hint hidden" role="status">
+            選手を選択してください。下のセクションは選手（またはチーム全体）を選ぶと有効になります。
+          </p>
+        </div>
+      </section>
+
+      <section class="card goals-dependent-section" id="tutorial-goals-list-section">
+        <button class="accordion-btn" data-target="goalListBody">目標一覧 <span>＋</span></button>
+        <div id="goalListBody" class="hidden">
+          <div class="controls" style="margin-top:10px;">
+            <button id="createGoalButton" class="primary-btn hidden">新規目標を作成</button>
+            <span id="goalListHint" class="help"></span>
+          </div>
+          <div id="goalList" class="goal-list"></div>
+        </div>
+      </section>
+
+      <section class="card goals-dependent-section" id="tutorial-goals-graph-section">
+        <button class="accordion-btn" data-target="graphBody">進捗グラフ <span>＋</span></button>
+        <div id="graphBody" class="hidden">
+          <div id="goalGraphs" class="graphs"></div>
+        </div>
+      </section>
+
+      <section class="card goals-dependent-section" id="tutorial-goals-notice-section">
+        <button class="accordion-btn" data-target="noticeBody">通知 <span>＋</span></button>
+        <div id="noticeBody" class="hidden">
+          <p id="noticeCountLabel" class="help" style="margin-top:0;"></p>
+          <div class="controls" style="margin-top:10px;">
+            <button id="markAllReadButton">すべて既読にする</button>
+          </div>
+          <div id="noticeList" class="notice-list"></div>
+        </div>
+      </section>
+      </div>
+    </main>
+
+    <div id="goalModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card">
+        <h3 id="goalModalTitle">新規目標を作成</h3>
+        <div class="form-grid">
+          <label>選手
+            <select id="goalPlayerSelect"></select>
+          </label>
+          <label>対象
+            <select id="goalScopeSelect">
+              <option value="player">個人</option>
+              <option value="team">チーム全体</option>
+            </select>
+          </label>
+          <label>項目
+            <select id="goalItemSelect"></select>
+          </label>
+          <label>目標値
+            <input id="goalTargetValue" type="number" min="0" step="0.1" placeholder="70" />
+          </label>
+          <label>目標種別
+            <select id="goalTypeSelect">
+              <option value="short">短期目標（大会）</option>
+              <option value="long">長期目標</option>
+            </select>
+          </label>
+          <label id="shortTournamentWrap" class="full">大会
+            <select id="goalTournamentSelect"></select>
+          </label>
+          <label id="longPeriodWrap" class="full">長期区分
+            <select id="goalPeriodTypeSelect">
+              <option value="season">シーズン間</option>
+              <option value="month">月間</option>
+              <option value="custom">自由設定</option>
+            </select>
+          </label>
+          <label id="startDateWrap">開始日
+            <input id="goalStartDate" type="date" />
+          </label>
+          <label id="endDateWrap">終了日
+            <input id="goalEndDate" type="date" />
+          </label>
+          <p id="goalModalError" class="help full" style="color:#ffb4a7;"></p>
+        </div>
+        <div class="modal-actions">
+          <button id="cancelGoalButton">キャンセル</button>
+          <button id="saveGoalButton" class="primary-btn">作成</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirmModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card">
+        <h3 id="confirmTitle">確認</h3>
+        <p id="confirmBody" class="help"></p>
+        <div class="modal-actions">
+          <button id="confirmCancelButton">キャンセル</button>
+          <button id="confirmOkButton" class="primary-btn">確定</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="goalNoticeDetailModal" class="modal goal-notice-detail-modal hidden">
+      <div class="modal-backdrop" id="goalNoticeDetailBackdrop"></div>
+      <div class="modal-card goal-notice-detail-card">
+        <div class="goal-notice-detail-head">
+          <h3 id="goalNoticeDetailTitle">目標の詳細</h3>
+          <button type="button" class="goal-notice-detail-x" id="goalNoticeDetailClose" aria-label="閉じる">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div id="goalNoticeDetailBody" class="goal-notice-detail-body">
+          <div id="goalNoticeDetailPane" class="goal-notice-detail-summary"></div>
+          <p class="goal-notice-chart-heading">進捗グラフ</p>
+          <div class="goal-notice-chart-scroll">
+            <div class="graph-card goal-notice-chart-wrap">
+              <div id="goal-chart-quickview" class="graph-body"></div>
+            </div>
+          </div>
+          <div id="goalNoticeChartAchievement"></div>
+          <div class="goal-actions" id="goalNoticeChartActions"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tooltip" class="tooltip hidden"></div>
+
+    <script src="./trash-core.js"></script>
+    <script src="./trash-ui.js"></script>
+    <script src="./offline-sync-core.js"></script>
+    <script src="./offline-ui.js"></script>
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyA5Kvd5-xvGGMFDLjuUMtmSRYXMk69g1DI",
+        authDomain: "sakurasenior-d6710.firebaseapp.com",
+        databaseURL:
+          "https://sakurasenior-d6710-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "sakurasenior-d6710",
+        storageBucket: "sakurasenior-d6710.firebasestorage.app",
+        messagingSenderId: "411200767986",
+        appId: "1:411200767986:web:56138e1598dc5351e24d6b",
+        measurementId: "G-BHT0M75LV6",
+      };
+      if (typeof SakuraOfflineSync !== "undefined") {
+        SakuraOfflineSync.configureSyncContext({ projectId: firebaseConfig.projectId });
+      }
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+
+      const PASSWORD = "sakurastaff";
+      const GOAL_METRICS = [
+        { key: "attackSuccess", label: "アタック成功数", type: "count" },
+        { key: "catch", label: "キャッチ数", type: "count" },
+        { key: "attackRate", label: "アタック成功率", type: "rate" },
+        { key: "catchRate", label: "キャッチ率", type: "rate" },
+        { key: "attackContribution", label: "アタック貢献度", type: "rate" },
+        { key: "catchContribution", label: "キャッチ貢献度", type: "rate" },
+        { key: "zeroBreak", label: "ゼロ抜き数", type: "count" },
+        { key: "return", label: "内野復帰数", type: "count" },
+      ];
+      /** 目標ページの選手並び優先。空なら名前の五十音順 */
+      const PLAYER_ORDER = [];
+
+      const state = {
+        role: "viewer",
+        /** ACCESS で閲覧/編集のいずれかを確定するまで下位セクションを隠す */
+        accessUnlocked: false,
+        /** メインの選手セレクトで明示的に選ぶまで一覧・グラフ等を無効化 */
+        playerChosen: false,
+        players: [],
+        tournaments: [],
+        allTournamentData: {},
+        goals: [],
+        selectedPlayerId: "",
+        selectedGoalIds: new Set(),
+        editGoalId: "",
+        readMap: {},
+        goalStatusFilter: "all",
+      };
+      const goalsDesktopMq = window.matchMedia("(min-width: 1024px)");
+
+      const el = {
+        loginInfoCard: document.getElementById("loginInfoCard"),
+        loginInfoAccordionButton: document.getElementById("loginInfoAccordionButton"),
+        loginInfoAccordionBody: document.getElementById("loginInfoAccordionBody"),
+        loginInfoAccordionIcon: document.getElementById("loginInfoAccordionIcon"),
+        goalsLogoutButton: document.getElementById("goalsLogoutButton"),
+        goalsLoginHint: document.getElementById("goalsLoginHint"),
+        viewerModeButton: document.getElementById("viewerModeButton"),
+        showStaffLoginButton: document.getElementById("showStaffLoginButton"),
+        staffPasswordArea: document.getElementById("staffPasswordArea"),
+        staffPasswordInput: document.getElementById("staffPasswordInput"),
+        staffModeButton: document.getElementById("staffModeButton"),
+        modeText: document.getElementById("modeText"),
+        playerSelect: document.getElementById("playerSelect"),
+        createGoalButton: document.getElementById("createGoalButton"),
+        goalStatusFilter: document.getElementById("goalStatusFilter"),
+        goalListHint: document.getElementById("goalListHint"),
+        goalList: document.getElementById("goalList"),
+        goalGraphs: document.getElementById("goalGraphs"),
+        noticeList: document.getElementById("noticeList"),
+        markAllReadButton: document.getElementById("markAllReadButton"),
+        goalModal: document.getElementById("goalModal"),
+        goalModalTitle: document.getElementById("goalModalTitle"),
+        goalPlayerSelect: document.getElementById("goalPlayerSelect"),
+        goalScopeSelect: document.getElementById("goalScopeSelect"),
+        goalItemSelect: document.getElementById("goalItemSelect"),
+        goalTargetValue: document.getElementById("goalTargetValue"),
+        goalTypeSelect: document.getElementById("goalTypeSelect"),
+        goalTournamentSelect: document.getElementById("goalTournamentSelect"),
+        goalPeriodTypeSelect: document.getElementById("goalPeriodTypeSelect"),
+        goalStartDate: document.getElementById("goalStartDate"),
+        goalEndDate: document.getElementById("goalEndDate"),
+        shortTournamentWrap: document.getElementById("shortTournamentWrap"),
+        longPeriodWrap: document.getElementById("longPeriodWrap"),
+        startDateWrap: document.getElementById("startDateWrap"),
+        endDateWrap: document.getElementById("endDateWrap"),
+        goalsPickPlayerHint: document.getElementById("goalsPickPlayerHint"),
+        goalModalError: document.getElementById("goalModalError"),
+        cancelGoalButton: document.getElementById("cancelGoalButton"),
+        saveGoalButton: document.getElementById("saveGoalButton"),
+        confirmModal: document.getElementById("confirmModal"),
+        confirmTitle: document.getElementById("confirmTitle"),
+        confirmBody: document.getElementById("confirmBody"),
+        confirmCancelButton: document.getElementById("confirmCancelButton"),
+        confirmOkButton: document.getElementById("confirmOkButton"),
+        tooltip: document.getElementById("tooltip"),
+        goalNoticeDetailModal: document.getElementById("goalNoticeDetailModal"),
+        goalNoticeDetailBackdrop: document.getElementById("goalNoticeDetailBackdrop"),
+        goalNoticeDetailClose: document.getElementById("goalNoticeDetailClose"),
+        goalNoticeDetailTitle: document.getElementById("goalNoticeDetailTitle"),
+        goalNoticeDetailBody: document.getElementById("goalNoticeDetailBody"),
+        goalNoticeDetailPane: document.getElementById("goalNoticeDetailPane"),
+        goalNoticeChartAchievement: document.getElementById("goalNoticeChartAchievement"),
+        goalNoticeChartActions: document.getElementById("goalNoticeChartActions"),
+        goalChartQuickview: document.getElementById("goal-chart-quickview"),
+        goalsWorkspace: document.getElementById("goalsWorkspace"),
+      };
+
+      /** 通知詳細モーダルで表示中の目標 ID */
+      let goalNoticeDetailLastGoalId = null;
+      let goalNoticeDetailLockedScrollY = 0;
+
+      function fmtPercent(v) { return `${(Number(v) || 0).toFixed(1)}%`; }
+      function safeNum(v) { return Number(v) || 0; }
+      function normalizeDate(value) {
+        const s = String(value || "").trim();
+        if (!s) return "";
+        const m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+        if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+        const m2 = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+        if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
+        return "";
+      }
+      function sanitizeFileName(v) { return String(v || "").replace(/[\\/:*?"<>|]/g, "_").trim(); }
+      function getAttackFailure(rec = {}) {
+        if (Number.isFinite(rec.attackFailure)) return Math.max(0, safeNum(rec.attackFailure));
+        return Math.max(0, safeNum(rec.attack) - safeNum(rec.attackSuccess));
+      }
+      function getPlayerName(id) { return state.players.find((p) => p.id === id)?.name || "未登録選手"; }
+      function getGoalSubjectName(goal) {
+        return goal.targetScope === "team" ? "チーム全体" : getPlayerName(goal.userId);
+      }
+      function getMetricDef(key) { return GOAL_METRICS.find((m) => m.key === key) || GOAL_METRICS[0]; }
+      function canEdit() { return state.role === "staff"; }
+
+      function unlockGoalsWorkspace() {
+        if (!state.accessUnlocked) {
+          state.accessUnlocked = true;
+          el.goalsWorkspace?.classList.remove("hidden");
+          el.goalsWorkspace?.setAttribute("aria-hidden", "false");
+          updateGoalsDependentUi();
+        }
+        initGoalsTrashUi();
+      }
+
+      /** ワークスペース表示中のみ。編集モードでバーを出す（閲覧モードでは隠す） */
+      function syncGoalsTrashBarVisibility() {
+        const bar = document.getElementById("goalsTrashBar");
+        if (!bar || !state.accessUnlocked) return;
+        bar.classList.toggle("hidden", !canEdit());
+      }
+
+      function initGoalsTrashUi() {
+        syncGoalsTrashBarVisibility();
+        const btn = document.getElementById("goalsTrashOpenButton");
+        if (!btn || typeof TrashUI === "undefined" || !db) return;
+        TrashUI.init({
+          db,
+          toggleButton: btn,
+          onRestored: async () => {
+            await loadGoals();
+            recalc();
+          },
+        });
+      }
+
+      /** ログアウト: 目標ワークスペースを閉じ、ACCESS に戻す */
+      function goalsLogout() {
+        state.accessUnlocked = false;
+        state.playerChosen = false;
+        state.selectedPlayerId = "";
+        state.selectedGoalIds = new Set();
+        state.role = "viewer";
+        el.staffPasswordArea.classList.add("hidden");
+        el.staffPasswordInput.value = "";
+        el.goalsWorkspace?.classList.add("hidden");
+        el.goalsWorkspace?.setAttribute("aria-hidden", "true");
+        document.getElementById("goalsTrashBar")?.classList.add("hidden");
+        el.loginInfoCard?.classList.add("hidden");
+        updateGoalsDependentUi();
+        renderMode();
+        renderPlayerSelect();
+        recalc();
+      }
+
+      /** 選手未選択時は目標一覧・グラフ・通知ブロックをグレーアウト */
+      function updateGoalsDependentUi() {
+        const inactive = Boolean(state.accessUnlocked && !state.playerChosen);
+        document.querySelectorAll(".goals-dependent-section").forEach((sec) => {
+          sec.classList.toggle("goals-dependent-section--inactive", inactive);
+        });
+        el.goalsPickPlayerHint?.classList.toggle("hidden", !inactive);
+      }
+
+      /** 短期目標用: 大会の試合日から期間を推定（無ければ大会日のみ） */
+      function getTournamentPeriodDates(tournamentId) {
+        const t = state.tournaments.find((x) => x.id === tournamentId);
+        const td = state.allTournamentData[tournamentId];
+        const dates = (td?.matches || [])
+          .map((m) => normalizeDate(m.date))
+          .filter(Boolean)
+          .sort();
+        if (dates.length) {
+          return { startDate: dates[0], endDate: dates[dates.length - 1] };
+        }
+        const tdDate = normalizeDate(t?.date || "");
+        if (tdDate) return { startDate: tdDate, endDate: tdDate };
+        return { startDate: "", endDate: "" };
+      }
+      function loadReadMap() {
+        try { state.readMap = JSON.parse(localStorage.getItem("goal-read-map") || "{}"); } catch { state.readMap = {}; }
+      }
+      function saveReadMap() {
+        localStorage.setItem("goal-read-map", JSON.stringify(state.readMap));
+      }
+
+      async function init() {
+        openGoalsAccordionsForDesktop();
+        loadReadMap();
+        bindEvents();
+        await Promise.all([loadPlayers(), loadTournaments()]);
+        await Promise.all([loadAllTournamentData(), loadGoals()]);
+        renderPlayerSelect();
+        updateGoalsDependentUi();
+        renderMode();
+        recalc();
+        maybeOpenNoticesFromQuery();
+        maybeOpenFocusGoalFromQuery();
+        if (typeof SakuraOfflineSync !== "undefined" && typeof SakuraOfflineSyncUI !== "undefined") {
+          SakuraOfflineSyncUI.init({
+            db,
+            firebase,
+            onAfterSync: async () => {
+              await Promise.all([loadPlayers(), loadTournaments()]);
+              await Promise.all([loadAllTournamentData(), loadGoals()]);
+              renderPlayerSelect();
+              updateGoalsDependentUi();
+              renderMode();
+              recalc();
+            },
+          });
+          void SakuraOfflineSync.registerServiceWorker("./sw.js");
+        }
+      }
+
+      async function loadPlayers() {
+        const orderMap = new Map(PLAYER_ORDER.map((name, idx) => [name, idx]));
+        try {
+          const snap = await db.ref("players").once("value");
+          const data = snap.val() || {};
+          state.players = Object.entries(data)
+            .map(([id, v]) => ({ id, name: v.name || "名称未設定", active: v.active !== false }))
+            .filter((p) => p.active !== false)
+            .sort((a, b) => {
+              const ai = orderMap.has(a.name) ? orderMap.get(a.name) : Number.MAX_SAFE_INTEGER;
+              const bi = orderMap.has(b.name) ? orderMap.get(b.name) : Number.MAX_SAFE_INTEGER;
+              if (ai !== bi) return ai - bi;
+              return a.name.localeCompare(b.name, "ja");
+            });
+          if (typeof SakuraOfflineSync !== "undefined") {
+            SakuraOfflineSync.persistAppSnapshot({ goalsPagePlayers: state.players });
+          }
+        } catch (e) {
+          console.error(e);
+          const snap = typeof SakuraOfflineSync !== "undefined" ? SakuraOfflineSync.loadAppSnapshot() : null;
+          if (snap?.goalsPagePlayers?.length) {
+            state.players = snap.goalsPagePlayers;
+          }
+        }
+      }
+      async function loadTournaments() {
+        try {
+          const snap = await db.ref("tournaments").once("value");
+          const data = snap.val() || {};
+          state.tournaments = Object.entries(data)
+            .map(([id, v]) => ({ id, name: v.name || "名称未設定", date: v.date || "" }))
+            .sort((a, b) => (a.date || "").localeCompare(b.date || "", "ja"));
+          if (typeof SakuraOfflineSync !== "undefined") {
+            SakuraOfflineSync.persistAppSnapshot({ goalsPageTournaments: state.tournaments });
+          }
+        } catch (e) {
+          console.error(e);
+          const snap = typeof SakuraOfflineSync !== "undefined" ? SakuraOfflineSync.loadAppSnapshot() : null;
+          if (snap?.goalsPageTournaments?.length) {
+            state.tournaments = snap.goalsPageTournaments;
+          }
+        }
+      }
+      async function loadAllTournamentData() {
+        try {
+          const out = {};
+          await Promise.all(state.tournaments.map(async (t) => {
+            const [mSnap, rSnap] = await Promise.all([
+              db.ref(`matches/${t.id}`).once("value"),
+              db.ref(`records/${t.id}`).once("value"),
+            ]);
+            out[t.id] = {
+              tournamentDate: t.date || "",
+              matches: Object.entries(mSnap.val() || {}).map(([id, v]) => ({
+                id, date: v.date || "", stage: v.stage || "予選", opponent: v.opponent || "",
+                tournamentId: t.id, tournamentName: t.name,
+              })),
+              recordsByMatch: rSnap.val() || {},
+            };
+          }));
+          state.allTournamentData = out;
+          if (typeof SakuraOfflineSync !== "undefined") {
+            SakuraOfflineSync.persistAppSnapshot({ goalsAllTournamentData: state.allTournamentData });
+          }
+        } catch (e) {
+          console.error(e);
+          const snap = typeof SakuraOfflineSync !== "undefined" ? SakuraOfflineSync.loadAppSnapshot() : null;
+          if (snap?.goalsAllTournamentData) {
+            state.allTournamentData = snap.goalsAllTournamentData;
+          }
+        }
+      }
+      async function loadGoals() {
+        try {
+          const snap = await db.ref("goals").once("value");
+          const data = snap.val() || {};
+          state.goals = Object.entries(data).map(([id, v]) => ({ id, ...v }));
+          if (typeof SakuraOfflineSync !== "undefined") {
+            SakuraOfflineSync.persistAppSnapshot({ goalsList: state.goals });
+          }
+        } catch (e) {
+          console.error(e);
+          const snap = typeof SakuraOfflineSync !== "undefined" ? SakuraOfflineSync.loadAppSnapshot() : null;
+          if (snap?.goalsList && Array.isArray(snap.goalsList)) {
+            state.goals = snap.goalsList;
+          }
+        }
+      }
+
+      function openAccordionIfClosed(bodyId) {
+        const target = document.getElementById(bodyId);
+        const btn = document.querySelector(`.accordion-btn[data-target="${bodyId}"]`);
+        if (!target || !btn) return;
+        if (target.classList.contains("hidden")) {
+          toggleAccordionAnimated(target, btn.querySelector("span:last-child"));
+        }
+      }
+
+      function openGoalsAccordionsForDesktop() {
+        if (!goalsDesktopMq.matches) return;
+        const targets = ["goalListBody", "graphBody", "noticeBody"];
+        targets.forEach((bodyId) => {
+          const body = document.getElementById(bodyId);
+          const btn = document.querySelector(`.accordion-btn[data-target="${bodyId}"]`);
+          if (!body || !btn) return;
+          body.classList.remove("hidden");
+          const icon = btn.querySelector("span:last-child");
+          if (icon) icon.textContent = "−";
+        });
+      }
+
+      /** 選手別リスト内での「目標n」の n（1始まり） */
+      function getGoalOrdinalNumber(goalId) {
+        const list = getPlayerGoals();
+        const i = list.findIndex((g) => g.id === goalId);
+        return i >= 0 ? i + 1 : 1;
+      }
+
+      function closeGoalNoticeDetailModal() {
+        el.goalNoticeDetailModal?.classList.add("hidden");
+        if (document.body.classList.contains("body-scroll-lock")) {
+          document.body.classList.remove("body-scroll-lock");
+          document.body.style.top = "";
+          window.scrollTo(0, goalNoticeDetailLockedScrollY);
+        }
+        goalNoticeDetailLastGoalId = null;
+        if (el.goalChartQuickview) el.goalChartQuickview.innerHTML = "";
+        if (el.goalNoticeChartAchievement) el.goalNoticeChartAchievement.innerHTML = "";
+        if (el.goalNoticeChartActions) el.goalNoticeChartActions.innerHTML = "";
+        if (el.goalNoticeDetailPane) el.goalNoticeDetailPane.innerHTML = "";
+        if (el.goalNoticeDetailBody) el.goalNoticeDetailBody.scrollTop = 0;
+        window.requestAnimationFrame(() => {
+          if (typeof window.__siteNavOpenNotices === "function") {
+            window.__siteNavOpenNotices("goals");
+            return;
+          }
+          window.__openGoalNoticesFromNav?.();
+        });
+      }
+
+      function buildGoalNoticeDetailHtml(goal, pr) {
+        const ord = getGoalOrdinalNumber(goal.id);
+        const metric = getMetricDef(goal.targetItem);
+        const metricLabel = metric.label;
+        const statusClass =
+          pr.status === "achieved" ? "achieved" : pr.status === "ongoing_achieving" ? "achieving" : "progressing";
+        const achievementClass =
+          pr.status === "achieved" ? "achieved" : pr.status === "ongoing_achieving" ? "achieving" : "progressing";
+        const achievementText =
+          pr.status === "achieved"
+            ? `<i class="fa-solid fa-award"></i>目標達成！確定済み`
+            : pr.status === "ongoing_achieving"
+              ? `<i class="fa-solid fa-circle-check"></i>目標達成中！`
+              : `<i class="fa-solid fa-chart-line"></i>目標未達`;
+        const editBtn = canEdit()
+          ? `<div class="goal-actions"><button type="button" id="goalNoticeDetailEditBtn">この目標を編集</button></div>`
+          : "";
+        return `
+          <article class="goal-item goal-notice-detail-article">
+            <div class="head">
+              <div>
+                <div style="font-size:15px;font-weight:700;color:var(--text);">目標${ord}: ${metricLabel} ${goal.targetValue}${metric.type === "rate" ? "%" : ""}</div>
+                <div class="meta">${goalRangeLabel(goal)}</div>
+                <div class="meta">対象: ${getGoalSubjectName(goal)}</div>
+                <div class="meta">種別: ${goal.goalType === "short" ? "短期（大会）" : "長期"}</div>
+              </div>
+              <span class="status ${statusClass}">${pr.statusText}</span>
+            </div>
+            <div class="meta">現在: ${pr.isRate ? fmtPercent(pr.currentValue) : pr.currentValue.toFixed(1)}</div>
+            <div class="achievement-banner ${achievementClass}">${achievementText} <span style="font-weight:500;">${buildProgressMessage(goal, pr)}</span></div>
+            ${editBtn}
+          </article>
+        `;
+      }
+
+      function buildGoalNoticeChartAchievementHtml(goal, pr) {
+        if (pr.status === "achieved") {
+          return `<div class="graph-achievement achieved"><i class="fa-solid fa-award"></i> 目標達成！ ${buildProgressMessage(goal, pr)}</div>`;
+        }
+        if (pr.status === "ongoing_achieving") {
+          return `<div class="graph-achievement challenging"><i class="fa-solid fa-circle-check"></i> 目標達成中！ ${buildProgressMessage(goal, pr)}</div>`;
+        }
+        return `<div class="graph-achievement progressing"><i class="fa-solid fa-chart-line"></i> 目標未達 ${buildProgressMessage(goal, pr)}</div>`;
+      }
+
+      function openGoalNoticeDetailModal(goalId) {
+        const goal = state.goals.find((g) => g.id === goalId);
+        if (!goal) return;
+        goalNoticeDetailLastGoalId = goalId;
+        const pr = calcGoalProgress(goal);
+        if (el.goalNoticeDetailTitle) {
+          el.goalNoticeDetailTitle.textContent = `目標${getGoalOrdinalNumber(goalId)} の詳細`;
+        }
+        if (el.goalNoticeDetailPane) {
+          el.goalNoticeDetailPane.innerHTML = buildGoalNoticeDetailHtml(goal, pr);
+        }
+        if (el.goalNoticeChartAchievement) {
+          el.goalNoticeChartAchievement.innerHTML = buildGoalNoticeChartAchievementHtml(goal, pr);
+        }
+        if (el.goalNoticeChartActions) {
+          el.goalNoticeChartActions.innerHTML = `
+            <button type="button" id="goalNoticeDetailExportBtn">グラフを出力</button>
+            ${canEdit() && pr.status !== "achieved" ? `<button type="button" class="primary-btn" id="goalNoticeDetailConfirmBtn">目標達成確定</button>` : ""}
+          `;
+        }
+        document.getElementById("goalNoticeDetailExportBtn")?.addEventListener("click", () => {
+          void exportGoalGraph(goal.id, el.goalChartQuickview);
+        });
+        document.getElementById("goalNoticeDetailConfirmBtn")?.addEventListener("click", () => askConfirmGoal(goal.id));
+        document.getElementById("goalNoticeDetailEditBtn")?.addEventListener("click", () => {
+          closeGoalNoticeDetailModal();
+          openGoalModal(goal.id);
+        });
+
+        if (el.goalChartQuickview) el.goalChartQuickview.innerHTML = "";
+        if (el.goalNoticeDetailBody) el.goalNoticeDetailBody.scrollTop = 0;
+        goalNoticeDetailLockedScrollY = window.scrollY || window.pageYOffset || 0;
+        document.body.style.top = `-${goalNoticeDetailLockedScrollY}px`;
+        document.body.classList.add("body-scroll-lock");
+        el.goalNoticeDetailModal?.classList.remove("hidden");
+        /* モーダル表示後に描画（IntersectionObserver がグラフ領域を検知できるように） */
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            if (!el.goalChartQuickview || !goalNoticeDetailLastGoalId) return;
+            const g = state.goals.find((x) => x.id === goalNoticeDetailLastGoalId);
+            if (g && !el.goalChartQuickview.querySelector("svg")) {
+              drawProgressChart(el.goalChartQuickview, g, calcGoalProgress(g));
+            }
+          });
+        });
+      }
+
+      /** 通知から: 該当選手に切替え・既読化のうえ、内容＋グラフをまとめて表示するモーダルを開く（site-nav からも参照） */
+      function focusGoalFromNotice(goalId) {
+        unlockGoalsWorkspace();
+        renderMode();
+        state.playerChosen = true;
+        const goal = state.goals.find((g) => g.id === goalId);
+        if (!goal) return;
+        if ((goal.targetScope || "player") === "team") state.selectedPlayerId = "team";
+        else state.selectedPlayerId = goal.userId;
+        renderPlayerSelect();
+        updateGoalsDependentUi();
+        state.selectedGoalIds = new Set([goalId]);
+        state.readMap[goalId] = true;
+        saveReadMap();
+        recalc();
+        openGoalNoticeDetailModal(goalId);
+      }
+      window.focusGoalFromNotice = focusGoalFromNotice;
+
+      function maybeOpenNoticesFromQuery() {
+        try {
+          const q = new URLSearchParams(location.search).get("open");
+          if (q !== "notices") return;
+          window.setTimeout(() => {
+            window.__openGoalNoticesFromNav?.();
+            const path = location.pathname.split("/").pop() || "goals.html";
+            history.replaceState({}, "", path);
+          }, 350);
+        } catch {}
+      }
+
+      /** ナビ通知からの遷移: 該当目標へフォーカス */
+      function maybeOpenFocusGoalFromQuery() {
+        try {
+          const id = new URLSearchParams(location.search).get("focusGoal");
+          if (!id) return;
+          window.setTimeout(() => {
+            focusGoalFromNotice(id);
+            const path = location.pathname.split("/").pop() || "goals.html";
+            history.replaceState({}, "", path);
+          }, 400);
+        } catch {}
+      }
+
+      window.__openGoalNoticesFromNav = function () {
+        unlockGoalsWorkspace();
+        renderMode();
+        openAccordionIfClosed("noticeBody");
+        document.getElementById("noticeBody")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      };
+
+      function bindEvents() {
+        el.loginInfoAccordionButton?.addEventListener("click", () => {
+          toggleAccordionAnimated(el.loginInfoAccordionBody, el.loginInfoAccordionIcon);
+        });
+        document.querySelectorAll(".accordion-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const target = document.getElementById(btn.dataset.target);
+            toggleAccordionAnimated(target, btn.querySelector("span:last-child"));
+          });
+        });
+        el.viewerModeButton.addEventListener("click", () => {
+          state.role = "viewer";
+          unlockGoalsWorkspace();
+          el.staffPasswordArea.classList.add("hidden");
+          el.staffPasswordInput.value = "";
+          renderMode();
+          recalc();
+        });
+        el.showStaffLoginButton.addEventListener("click", () => {
+          el.staffPasswordArea.classList.toggle("hidden");
+        });
+        el.staffModeButton.addEventListener("click", () => {
+          if (el.staffPasswordInput.value !== PASSWORD) return alert("パスワードが違います");
+          state.role = "staff";
+          el.staffPasswordArea.classList.add("hidden");
+          unlockGoalsWorkspace();
+          renderMode();
+          recalc();
+        });
+        el.playerSelect.addEventListener("change", () => {
+          state.selectedPlayerId = el.playerSelect.value;
+          state.playerChosen = el.playerSelect.value !== "";
+          state.selectedGoalIds = new Set();
+          updateGoalsDependentUi();
+          recalc();
+        });
+        el.goalStatusFilter.addEventListener("change", () => {
+          state.goalStatusFilter = el.goalStatusFilter.value;
+          recalc();
+        });
+        el.createGoalButton.addEventListener("click", () => openGoalModal());
+        el.goalTypeSelect.addEventListener("change", syncGoalTypeFields);
+        el.goalTournamentSelect.addEventListener("change", () => {
+          if (el.goalTypeSelect.value === "short") {
+            el.goalStartDate.value = "";
+            el.goalEndDate.value = "";
+          }
+        });
+        el.goalScopeSelect.addEventListener("change", () => {
+          const isTeam = el.goalScopeSelect.value === "team";
+          el.goalPlayerSelect.closest("label")?.classList.toggle("hidden", isTeam);
+        });
+        el.goalPeriodTypeSelect.addEventListener("change", syncLongPresetDates);
+        el.cancelGoalButton.addEventListener("click", () => el.goalModal.classList.add("hidden"));
+        el.saveGoalButton.addEventListener("click", saveGoalFromModal);
+        el.confirmCancelButton.addEventListener("click", () => el.confirmModal.classList.add("hidden"));
+        el.markAllReadButton.addEventListener("click", () => {
+          getCurrentNotices().forEach((n) => { state.readMap[n.goalId] = true; });
+          saveReadMap();
+          recalc();
+        });
+        el.goalNoticeDetailClose?.addEventListener("click", closeGoalNoticeDetailModal);
+        el.goalNoticeDetailBackdrop?.addEventListener("click", closeGoalNoticeDetailModal);
+        el.goalsLogoutButton?.addEventListener("click", () => goalsLogout());
+        document.addEventListener("keydown", (e) => {
+          if (e.key !== "Escape") return;
+          if (!el.confirmModal?.classList.contains("hidden")) return;
+          if (!el.goalModal?.classList.contains("hidden")) return;
+          if (!el.goalNoticeDetailModal?.classList.contains("hidden")) {
+            closeGoalNoticeDetailModal();
+          }
+        });
+      }
+
+      function renderMode() {
+        if (!state.accessUnlocked) {
+          el.goalsLoginHint.textContent =
+            "閲覧モードまたは編集モードのどちらかを選ぶと、下のコンテンツが表示されます。";
+          el.modeText.textContent = "";
+          el.loginInfoCard?.classList.add("hidden");
+        } else {
+          el.goalsLoginHint.textContent = "";
+          el.modeText.textContent = `現在: ${canEdit() ? "EDIT / 編集モード" : "VIEW / 閲覧モード"}`;
+          el.loginInfoCard?.classList.remove("hidden");
+        }
+        el.createGoalButton.classList.toggle("hidden", !canEdit());
+        syncGoalsTrashBarVisibility();
+      }
+      function renderPlayerSelect() {
+        const list = state.players;
+        el.playerSelect.innerHTML = [
+          '<option value="">選手を選択してください</option>',
+          '<option value="team">チーム全体</option>',
+          ...list.map((p) => `<option value="${p.id}">${p.name}</option>`),
+        ].join("");
+        if (state.playerChosen && state.selectedPlayerId) {
+          if (state.selectedPlayerId === "team" || list.some((p) => p.id === state.selectedPlayerId)) {
+            el.playerSelect.value = state.selectedPlayerId;
+          } else {
+            state.selectedPlayerId = "";
+            state.playerChosen = false;
+            el.playerSelect.value = "";
+          }
+        } else {
+          state.selectedPlayerId = "";
+          state.playerChosen = false;
+          el.playerSelect.value = "";
+        }
+      }
+
+      function goalRangeLabel(goal) {
+        if (goal.goalType === "short") {
+          const t = state.tournaments.find((x) => x.id === goal.relatedEvent);
+          return `大会: ${t?.name || "未設定"}`;
+        }
+        return `${goal.startDate || "?"} ～ ${goal.endDate || "?"}`;
+      }
+      function calcGoalProgress(goal) {
+        const playerId = goal.userId;
+        const scope = goal.targetScope || "player";
+        const metric = goal.targetItem;
+        const isRate = getMetricDef(metric).type === "rate";
+        const target = safeNum(goal.targetValue);
+        const records = [];
+
+        const startNorm = normalizeDate(goal.startDate);
+        const endNorm = normalizeDate(goal.endDate);
+        const inDateRange = (date) => {
+          if (goal.goalType === "short") return true;
+          const d = normalizeDate(date);
+          if (!d) return !startNorm && !endNorm;
+          if (startNorm && d < startNorm) return false;
+          if (endNorm && d > endNorm) return false;
+          return true;
+        };
+
+        const tournamentIds = goal.goalType === "short" && goal.relatedEvent
+          ? [goal.relatedEvent]
+          : state.tournaments.map((t) => t.id);
+
+        tournamentIds.forEach((tid) => {
+          const td = state.allTournamentData[tid];
+          if (!td) return;
+          (td.matches || []).forEach((m) => {
+            const effectiveDate = normalizeDate(m.date) || normalizeDate(td.tournamentDate);
+            if (!inDateRange(effectiveDate)) return;
+            const all = td.recordsByMatch[m.id] || {};
+            if (scope === "team") {
+              const entries = Object.values(all).filter((r) => !r?.isBench);
+              if (!entries.length) return;
+              records.push({
+                date: effectiveDate || "",
+                rec: {
+                  attackSuccess: d3.sum(entries, (r) => safeNum(r.attackSuccess)),
+                  attackFailure: d3.sum(entries, (r) => getAttackFailure(r)),
+                  catch: d3.sum(entries, (r) => safeNum(r.catch)),
+                  out: d3.sum(entries, (r) => safeNum(r.out)),
+                  return: d3.sum(entries, (r) => safeNum(r.return)),
+                  zeroBreak: d3.sum(entries, (r) => safeNum(r.zeroBreak)),
+                },
+                all,
+                isTeam: true,
+              });
+            } else {
+              const rec = all[playerId] || {};
+              if (rec.isBench) return;
+              records.push({ date: effectiveDate || "", rec, all, isTeam: false });
+            }
+          });
+        });
+        records.sort((a, b) => (a.date || "").localeCompare(b.date || "", "ja"));
+
+        let accSuccess = 0, accFail = 0, accCatch = 0, accOut = 0, accReturn = 0, accZero = 0;
+        let accAtkContrib = 0, accCatchContrib = 0, games = 0;
+        const series = records.map((it) => {
+          const rec = it.rec;
+          const all = it.all;
+          const success = safeNum(rec.attackSuccess);
+          const fail = getAttackFailure(rec);
+          const catchN = safeNum(rec.catch);
+          const outN = safeNum(rec.out);
+          const retN = safeNum(rec.return);
+          const zeroN = safeNum(rec.zeroBreak);
+          const teamAtk = Object.values(all).reduce((s, x) => s + (x?.isBench ? 0 : safeNum(x?.attackSuccess)), 0);
+          const teamCatch = Object.values(all).reduce((s, x) => s + (x?.isBench ? 0 : safeNum(x?.catch)), 0);
+
+          accSuccess += success; accFail += fail; accCatch += catchN; accOut += outN; accReturn += retN; accZero += zeroN;
+          accAtkContrib += it.isTeam ? (success > 0 ? 100 : 0) : (teamAtk ? (success / teamAtk) * 100 : 0);
+          accCatchContrib += it.isTeam ? (catchN > 0 ? 100 : 0) : (teamCatch ? (catchN / teamCatch) * 100 : 0);
+          games += 1;
+
+          const map = {
+            attackSuccess: accSuccess,
+            catch: accCatch,
+            zeroBreak: accZero,
+            return: accReturn,
+            attackRate: (accSuccess + accFail) ? (accSuccess / (accSuccess + accFail)) * 100 : 0,
+            catchRate: (accCatch + accOut) ? (accCatch / (accCatch + accOut)) * 100 : 0,
+            attackContribution: games ? accAtkContrib / games : 0,
+            catchContribution: games ? accCatchContrib / games : 0,
+          };
+          return { date: it.date, value: safeNum(map[metric]) };
+        });
+
+        const currentValue = series[series.length - 1]?.value || 0;
+        let dynamic = currentValue >= target ? "ongoing_achieving" : "ongoing";
+        if (goal.status === "achieved") dynamic = "achieved";
+        if (goal.status === "not_achieved") dynamic = "not_achieved";
+
+        const statusTextMap = {
+          ongoing_achieving: "目標達成中",
+          ongoing: "目標未達",
+          achieved: "目標達成！",
+          not_achieved: "目標未達",
+        };
+        return {
+          target,
+          currentValue,
+          isRate,
+          series,
+          status: dynamic,
+          statusText: statusTextMap[dynamic] || "目標未達",
+        };
+      }
+
+      function getPlayerGoals() {
+        if (!state.playerChosen || !state.selectedPlayerId) return [];
+        if (state.selectedPlayerId === "team") return state.goals.filter((g) => (g.targetScope || "player") === "team");
+        return state.goals.filter((g) => (g.targetScope || "player") === "player" && g.userId === state.selectedPlayerId);
+      }
+
+      function recalc() {
+        updateGoalsDependentUi();
+        const allGoals = getPlayerGoals();
+        const goals = sortGoalsForDisplay(
+          allGoals.filter((g) => {
+            const pr = calcGoalProgress(g);
+            if (state.goalStatusFilter === "all") return true;
+            if (state.goalStatusFilter === "achieved") return pr.status === "achieved" || pr.status === "ongoing_achieving";
+            if (state.goalStatusFilter === "not_achieved") return pr.status === "not_achieved" || pr.status === "ongoing";
+            return true;
+          }),
+        );
+        renderGoalList(goals);
+        renderGoalGraphs(goals);
+        renderNotices(allGoals);
+      }
+
+      function buildProgressMessage(goal, pr) {
+        const diff = pr.target - pr.currentValue;
+        if (pr.status === "achieved") return "この目標は達成確定済みです。";
+        if (pr.status === "ongoing_achieving") return "目標値を上回っています。維持を目指しましょう。";
+        if (pr.isRate) return `目標まであと ${Math.max(0, diff).toFixed(1)}%`;
+        return `目標まであと ${Math.max(0, Math.ceil(diff))} 回`;
+      }
+
+      /** 一覧表示順: 期間終了が近い順（短期は大会日／試合日レンジの終端、長期は終了日） */
+      function sortGoalsForDisplay(goals) {
+        const sortKey = (g) => {
+          if (g.goalType === "short") {
+            const { endDate } = getTournamentPeriodDates(g.relatedEvent || "");
+            if (endDate) return endDate;
+            const t = state.tournaments.find((x) => x.id === g.relatedEvent);
+            return normalizeDate(t?.date || "") || "9999-12-31";
+          }
+          return normalizeDate(g.endDate || "") || "9999-12-31";
+        };
+        return [...goals].sort((a, b) => sortKey(a).localeCompare(sortKey(b)) || String(a.id || "").localeCompare(String(b.id || "")));
+      }
+
+      function setSelectOptions(selectEl, options) {
+        if (!selectEl) return;
+        selectEl.innerHTML = "";
+        options.forEach((opt) => {
+          const optionEl = document.createElement("option");
+          optionEl.value = String(opt.value ?? "");
+          optionEl.textContent = String(opt.label ?? "");
+          selectEl.appendChild(optionEl);
+        });
+      }
+
+      function escapeHtmlText(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function renderGoalList(goals) {
+        if (!state.playerChosen) {
+          el.goalListHint.textContent = "";
+          el.goalList.innerHTML =
+            '<p class="help">選手を選択してください。上のドロップダウンから選手または「チーム全体」を選ぶと、目標一覧が表示されます。</p>';
+          return;
+        }
+        el.goalListHint.textContent = `${state.selectedPlayerId === "team" ? "チーム全体" : getPlayerName(state.selectedPlayerId)} の目標 ${goals.length}件`;
+        const allForPlayer = getPlayerGoals();
+        if (!goals.length) {
+          if (!allForPlayer.length && canEdit()) {
+            el.goalList.innerHTML =
+              '<p class="help">目標がまだ作成されていません。「新規目標を作成」ボタンから目標を追加してください。</p>';
+          } else if (!allForPlayer.length) {
+            el.goalList.innerHTML = '<p class="help">目標がまだ作成されていません。</p>';
+          } else {
+            el.goalList.innerHTML =
+              '<p class="help">表示条件に合致する目標がありません。表示フィルタを変更してください。</p>';
+          }
+          return;
+        }
+        el.goalList.innerHTML = "";
+        goals.forEach((goal, idx) => {
+          const pr = calcGoalProgress(goal);
+          const statusClass = pr.status === "achieved"
+            ? "achieved"
+            : (pr.status === "ongoing_achieving" ? "achieving" : "progressing");
+          const metricLabel = getMetricDef(goal.targetItem).label;
+          const card = document.createElement("article");
+          card.className = "goal-item";
+          const achievementClass = pr.status === "achieved" ? "achieved" : (pr.status === "ongoing_achieving" ? "achieving" : "progressing");
+          const achievementText = pr.status === "achieved"
+            ? `<i class="fa-solid fa-award"></i>目標達成！確定済み`
+            : (pr.status === "ongoing_achieving"
+              ? `<i class="fa-solid fa-circle-check"></i>目標達成中！`
+              : `<i class="fa-solid fa-chart-line"></i>目標未達`);
+          const titleHtml = canEdit()
+            ? `<label style="display:flex;align-items:center;gap:8px;color:var(--text);font-size:14px;">
+                <input type="checkbox" data-goal-check="${goal.id}" ${state.selectedGoalIds.has(goal.id) ? "checked" : ""} />
+                目標${idx + 1}: ${metricLabel} ${goal.targetValue}${getMetricDef(goal.targetItem).type === "rate" ? "%" : ""}
+              </label>`
+            : `<div style="font-size:14px;">目標${idx + 1}: ${metricLabel} ${goal.targetValue}${getMetricDef(goal.targetItem).type === "rate" ? "%" : ""}</div>`;
+          card.innerHTML = `
+            <div class="head">
+              <div>
+                ${titleHtml}
+                <div class="meta">${goalRangeLabel(goal)}</div>
+              </div>
+              <span class="status ${statusClass}">${pr.statusText}</span>
+            </div>
+            <div class="meta">現在: ${pr.isRate ? fmtPercent(pr.currentValue) : pr.currentValue.toFixed(1)}</div>
+            <div class="achievement-banner ${achievementClass}">${achievementText} <span style="font-weight:500;">${buildProgressMessage(goal, pr)}</span></div>
+            <div class="goal-actions">
+              ${canEdit() ? `<button data-goal-edit="${goal.id}">編集</button><button class="danger" data-goal-delete="${goal.id}">削除</button>` : ""}
+            </div>
+          `;
+          el.goalList.appendChild(card);
+        });
+        if (canEdit()) {
+          el.goalList.querySelectorAll("[data-goal-check]").forEach((ch) => ch.addEventListener("change", () => {
+            const id = ch.dataset.goalCheck;
+            if (ch.checked) state.selectedGoalIds.add(id); else state.selectedGoalIds.delete(id);
+            renderGoalGraphs(goals);
+          }));
+        }
+        el.goalList.querySelectorAll("[data-goal-edit]").forEach((btn) => btn.addEventListener("click", () => openGoalModal(btn.dataset.goalEdit)));
+        el.goalList.querySelectorAll("[data-goal-delete]").forEach((btn) => btn.addEventListener("click", () => askDeleteGoal(btn.dataset.goalDelete)));
+      }
+
+      function drawProgressChart(container, goal, progress) {
+        container.innerHTML = "";
+        if (!progress.series.length) { container.innerHTML = '<p class="help">対象期間の記録がありません。</p>'; return; }
+        const width = 980, height = 280, m = { top: 28, right: 20, bottom: 38, left: 48 };
+        const svg = d3.select(container).append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("width", "100%").attr("height", height);
+        const x = d3.scaleLinear().domain([0, Math.max(0, progress.series.length - 1)]).range([m.left, width - m.right]);
+        const yMax = progress.isRate
+          ? 100
+          : Math.max(progress.target * 1.2, d3.max(progress.series, (d) => d.value) || 0, 10);
+        const y = d3.scaleLinear().domain([0, yMax]).nice().range([height - m.bottom, m.top]);
+        svg.append("g").selectAll("line").data(y.ticks(5)).enter().append("line")
+          .attr("x1", m.left).attr("x2", width - m.right).attr("y1", (d) => y(d)).attr("y2", (d) => y(d))
+          .attr("stroke", "rgba(255,255,255,0.10)");
+        const targetLine = svg.append("line")
+          .attr("x1", m.left).attr("x2", width - m.right).attr("y1", y(progress.target)).attr("y2", y(progress.target))
+          .attr("stroke", "#ffd166").attr("stroke-dasharray", "5,4").attr("stroke-width", 1.8);
+        const line = d3.line().x((d, i) => x(i)).y((d) => y(d.value));
+        const trendPath = svg.append("path").datum(progress.series).attr("fill", "none").attr("stroke", "#84c3ff").attr("stroke-width", 2).attr("d", line);
+        const circles = svg.selectAll("circle").data(progress.series).enter().append("circle")
+          .attr("cx", (_, i) => x(i)).attr("cy", (d) => y(d.value)).attr("r", 3.4).attr("fill", "#84c3ff")
+          .on("mousemove", (event, d) => {
+            el.tooltip.classList.remove("hidden");
+            el.tooltip.textContent = `${d.date} 時点: ${d.value.toFixed(1)}${progress.isRate ? "%" : ""}`;
+            el.tooltip.style.left = `${event.clientX + 10}px`;
+            el.tooltip.style.top = `${event.clientY + 10}px`;
+          })
+          .on("mouseleave", () => el.tooltip.classList.add("hidden"));
+        circles.attr("opacity", 0);
+        svg.append("g").attr("class", "axis").attr("transform", `translate(0,${height - m.bottom})`).call(
+          d3.axisBottom(x).ticks(Math.min(8, Math.max(1, progress.series.length - 1))).tickFormat((v) => progress.series[Math.round(v)]?.date || "")
+        );
+        svg.append("g").attr("class", "axis").attr("transform", `translate(${m.left},0)`).call(d3.axisLeft(y));
+        svg.append("text").attr("x", m.left).attr("y", 12).attr("fill", "#f8e7a1").style("font-size", "11px").text(`${getGoalSubjectName(goal)} / ${getMetricDef(goal.targetItem).label} 目標 ${goal.targetValue}${progress.isRate ? "%" : ""}`);
+
+        const startAnimation = () => {
+          const totalLength = trendPath.node()?.getTotalLength?.() || 0;
+          if (totalLength > 0) {
+            trendPath
+              .attr("stroke-dasharray", `${totalLength} ${totalLength}`)
+              .attr("stroke-dashoffset", totalLength)
+              .transition()
+              .duration(3000)
+              .ease(d3.easeCubicOut)
+              .attr("stroke-dashoffset", 0);
+          }
+          circles
+            .transition()
+            .delay((_, i) => 300 + i * 180)
+            .duration(420)
+            .attr("opacity", 1);
+          targetLine
+            .attr("opacity", 0)
+            .transition()
+            .delay(300)
+            .duration(700)
+            .attr("opacity", 1);
+        };
+
+        if (typeof IntersectionObserver === "undefined") {
+          startAnimation();
+          return;
+        }
+        const observer = new IntersectionObserver((entries, obs) => {
+          const visible = entries.some((entry) => entry.isIntersecting);
+          if (!visible) return;
+          startAnimation();
+          obs.disconnect();
+        }, { threshold: 0.35 });
+        observer.observe(container);
+      }
+      async function exportGoalGraph(goalId, chartNodeOverride) {
+        const goal = state.goals.find((g) => g.id === goalId);
+        if (!goal) return;
+        const pr = calcGoalProgress(goal);
+        const chartNode = chartNodeOverride || document.getElementById(`goal-chart-${goal.id}`);
+        if (!chartNode || !chartNode.querySelector("svg")) {
+          alert("出力できるグラフがありません。");
+          return;
+        }
+        const wrap = document.createElement("div");
+        wrap.style.background = "#0f0f0f";
+        wrap.style.color = "#f8f3df";
+        wrap.style.padding = "12px";
+        wrap.style.width = "1000px";
+        wrap.style.border = "1px solid rgba(255,214,88,0.3)";
+        wrap.style.borderRadius = "12px";
+        const metric = getMetricDef(goal.targetItem);
+        const status = pr.statusText;
+        const periodText = goal.goalType === "short"
+          ? goalRangeLabel(goal)
+          : `期間: ${goal.startDate || "?"} ～ ${goal.endDate || "?"}`;
+        const meta = document.createElement("div");
+        meta.style.display = "grid";
+        meta.style.gap = "4px";
+        meta.style.marginBottom = "10px";
+        meta.innerHTML = `
+          <div style="font-size:18px;font-weight:700;color:#ffd658;">進捗グラフ出力</div>
+          <div style="font-size:13px;">対象: ${getGoalSubjectName(goal)}</div>
+          <div style="font-size:13px;">項目: ${metric.label}</div>
+          <div style="font-size:13px;">目標値: ${goal.targetValue}${metric.type === "rate" ? "%" : ""}</div>
+          <div style="font-size:13px;">${periodText}</div>
+          <div style="font-size:13px;">進捗度: ${status}</div>
+        `;
+        const clonedChart = chartNode.cloneNode(true);
+        wrap.appendChild(meta);
+        wrap.appendChild(clonedChart);
+        document.body.appendChild(wrap);
+        wrap.style.position = "fixed";
+        wrap.style.left = "-99999px";
+        const canvas = await html2canvas(wrap, { backgroundColor: "#0f0f0f", scale: 2 });
+        wrap.remove();
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+        const filename = sanitizeFileName(`進捗グラフ_${getGoalSubjectName(goal)}_${metric.label}_${goal.targetValue}_${status}.png`);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function renderGoalGraphs(goals) {
+        if (!state.playerChosen) {
+          el.goalGraphs.innerHTML = '<p class="help">先に選手を選択してください。</p>';
+          return;
+        }
+        let selected;
+        if (canEdit()) {
+          selected = goals.filter((g) => state.selectedGoalIds.has(g.id));
+          if (!selected.length) {
+            el.goalGraphs.innerHTML = goals.length
+              ? '<p class="help">グラフはまだ表示されていません。目標一覧で表示したい目標にチェックを入れると、ここにグラフが表示されます。</p>'
+              : '<p class="help">表示対象の目標がありません。</p>';
+            return;
+          }
+        } else {
+          selected = goals.filter((g) => state.selectedGoalIds.size === 0 || state.selectedGoalIds.has(g.id));
+          if (!selected.length) {
+            el.goalGraphs.innerHTML = '<p class="help">グラフを表示する目標がありません。</p>';
+            return;
+          }
+        }
+        el.goalGraphs.innerHTML = "";
+        selected.forEach((goal, idx) => {
+          const pr = calcGoalProgress(goal);
+          const card = document.createElement("article");
+          card.className = "graph-card";
+          if (idx === 0) card.setAttribute("data-tutorial-first-goal-graph", "");
+          card.innerHTML = `
+            <h4 style="margin:0 0 8px;color:var(--accent);">目標${idx + 1}: ${getMetricDef(goal.targetItem).label} ${goal.targetValue}${pr.isRate ? "%" : ""}（${goalRangeLabel(goal)}）</h4>
+            <div id="goal-chart-${goal.id}" class="graph-body"></div>
+            ${pr.status === "achieved"
+              ? `<div class="graph-achievement achieved"><i class="fa-solid fa-award"></i> 目標達成！ ${buildProgressMessage(goal, pr)}</div>`
+              : (pr.status === "ongoing_achieving"
+                ? `<div class="graph-achievement challenging"><i class="fa-solid fa-circle-check"></i> 目標達成中！ ${buildProgressMessage(goal, pr)}</div>`
+                : `<div class="graph-achievement progressing"><i class="fa-solid fa-chart-line"></i> 目標未達 ${buildProgressMessage(goal, pr)}</div>`)}
+            <div class="goal-actions">
+              <button data-goal-export="${goal.id}">グラフを出力</button>
+              ${canEdit() ? `<button data-goal-confirm="${goal.id}" class="primary-btn">目標達成確定</button>` : ""}
+            </div>
+          `;
+          el.goalGraphs.appendChild(card);
+          drawProgressChart(card.querySelector(`#goal-chart-${goal.id}`), goal, pr);
+        });
+        el.goalGraphs.querySelectorAll("[data-goal-export]").forEach((btn) => btn.addEventListener("click", () => exportGoalGraph(btn.dataset.goalExport)));
+        el.goalGraphs.querySelectorAll("[data-goal-confirm]").forEach((btn) => btn.addEventListener("click", () => askConfirmGoal(btn.dataset.goalConfirm)));
+      }
+
+      function getCurrentNotices() {
+        return getPlayerGoals()
+          .map((g) => ({ goal: g, progress: calcGoalProgress(g), goalId: g.id }))
+          .filter((x) => ["ongoing_achieving", "ongoing", "achieved"].includes(x.progress.status))
+          .map((x) => ({
+            ...x,
+            unread: !state.readMap[x.goalId],
+            title:
+              x.progress.status === "achieved"
+                ? `<i class="fa-solid fa-award"></i> 目標達成！`
+                : (x.progress.status === "ongoing_achieving"
+                  ? `<i class="fa-solid fa-circle-check"></i> 目標達成中`
+                  : `<i class="fa-solid fa-chart-line"></i> 目標未達`),
+            body: `${getGoalSubjectName(x.goal)} / ${getMetricDef(x.goal.targetItem).label} 現在: ${x.progress.progressText || (x.progress.isRate ? fmtPercent(x.progress.currentValue) : x.progress.currentValue.toFixed(1))} | 目標: ${x.goal.targetValue}${x.progress.isRate ? "%" : ""} | ${buildProgressMessage(x.goal, x.progress)}`,
+          }));
+      }
+      function renderNotices(goals) {
+        const notices = getCurrentNotices();
+        const unreadCount = notices.filter((n) => n.unread).length;
+        try {
+          localStorage.setItem("sakura-goal-unread-cache", String(unreadCount));
+        } catch {}
+        try {
+          window.dispatchEvent(new CustomEvent("sakura-goal-unread-updated", { detail: { unread: unreadCount } }));
+        } catch {}
+        if (typeof window.__siteNavRefreshBell === "function") {
+          void window.__siteNavRefreshBell();
+        }
+
+        const label = document.getElementById("noticeCountLabel");
+        if (label) label.textContent = `通知: ${notices.length}件（未読 ${unreadCount}件）`;
+
+        if (!state.playerChosen) {
+          el.noticeList.innerHTML =
+            '<p class="help">選手を選択すると、その選手（またはチーム全体）に関する目標の通知がここに表示されます。</p>';
+          return;
+        }
+
+        if (!notices.length) {
+          el.noticeList.innerHTML = '<p class="help">通知はありません。</p>';
+          return;
+        }
+        el.noticeList.innerHTML = notices.map((n) => `
+          <article class="notice ${n.unread ? "unread" : ""}" tabindex="0" role="button" data-notice-goal="${n.goalId}">
+            <strong>${n.title}</strong>
+            <div class="help" style="margin-top:4px;">${escapeHtmlText(n.body)}</div>
+          </article>
+        `).join("");
+        el.noticeList.querySelectorAll("[data-notice-goal]").forEach((row) => {
+          const gid = row.dataset.noticeGoal;
+          const open = () => focusGoalFromNotice(gid);
+          row.addEventListener("click", open);
+          row.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              open();
+            }
+          });
+        });
+      }
+
+      function syncGoalTypeFields() {
+        const isShort = el.goalTypeSelect.value === "short";
+        el.shortTournamentWrap.classList.toggle("hidden", !isShort);
+        el.longPeriodWrap.classList.toggle("hidden", isShort);
+        el.startDateWrap?.classList.toggle("hidden", isShort);
+        el.endDateWrap?.classList.toggle("hidden", isShort);
+        if (isShort) {
+          el.goalStartDate.value = "";
+          el.goalEndDate.value = "";
+        } else if (el.goalPeriodTypeSelect.value !== "custom") {
+          syncLongPresetDates();
+        }
+      }
+      function syncLongPresetDates() {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = today.getMonth();
+        if (el.goalTypeSelect.value !== "long") return;
+        if (el.goalPeriodTypeSelect.value === "month") {
+          const s = new Date(y, m, 1);
+          const e = new Date(y, m + 1, 0);
+          el.goalStartDate.value = s.toISOString().slice(0, 10);
+          el.goalEndDate.value = e.toISOString().slice(0, 10);
+        } else if (el.goalPeriodTypeSelect.value === "season") {
+          const seasonYear = m >= 3 ? y : y - 1;
+          const s = new Date(seasonYear, 3, 1);
+          const e = new Date(seasonYear + 1, 2, 31);
+          el.goalStartDate.value = s.toISOString().slice(0, 10);
+          el.goalEndDate.value = e.toISOString().slice(0, 10);
+        }
+      }
+
+      function openGoalModal(goalId = "") {
+        state.editGoalId = goalId;
+        el.goalModalError.textContent = "";
+        setSelectOptions(
+          el.goalPlayerSelect,
+          state.players.map((p) => ({ value: p.id, label: p.name })),
+        );
+        setSelectOptions(
+          el.goalItemSelect,
+          GOAL_METRICS.map((m) => ({ value: m.key, label: m.label })),
+        );
+        setSelectOptions(
+          el.goalTournamentSelect,
+          state.tournaments.map((t) => ({ value: t.id, label: t.name })),
+        );
+        if (goalId) {
+          const g = state.goals.find((x) => x.id === goalId);
+          if (!g) return;
+          el.goalModalTitle.textContent = "目標を編集";
+          el.saveGoalButton.textContent = "更新";
+          el.goalScopeSelect.value = g.targetScope || "player";
+          el.goalPlayerSelect.value = g.userId;
+          el.goalItemSelect.value = g.targetItem;
+          el.goalTargetValue.value = g.targetValue;
+          el.goalTypeSelect.value = g.goalType || "short";
+          el.goalTournamentSelect.value = g.relatedEvent || state.tournaments[0]?.id || "";
+          el.goalPeriodTypeSelect.value = g.periodType || "custom";
+          el.goalStartDate.value = g.startDate || "";
+          el.goalEndDate.value = g.endDate || "";
+        } else {
+          el.goalModalTitle.textContent = "新規目標を作成";
+          el.saveGoalButton.textContent = "作成";
+          el.goalScopeSelect.value = state.selectedPlayerId === "team" ? "team" : "player";
+          el.goalPlayerSelect.value = state.selectedPlayerId === "team" ? (state.players[0]?.id || "") : (state.selectedPlayerId || state.players[0]?.id || "");
+          el.goalItemSelect.value = GOAL_METRICS[0].key;
+          el.goalTargetValue.value = "";
+          el.goalTypeSelect.value = "short";
+          el.goalTournamentSelect.value = state.tournaments[0]?.id || "";
+          el.goalPeriodTypeSelect.value = "season";
+          syncLongPresetDates();
+        }
+        el.goalPlayerSelect.closest("label")?.classList.toggle("hidden", el.goalScopeSelect.value === "team");
+        syncGoalTypeFields();
+        el.goalModal.classList.remove("hidden");
+      }
+
+      async function saveGoalFromModal() {
+        const targetScope = el.goalScopeSelect.value || "player";
+        const userId = targetScope === "team" ? "team" : el.goalPlayerSelect.value;
+        const targetItem = el.goalItemSelect.value;
+        const targetValue = safeNum(el.goalTargetValue.value);
+        const goalType = el.goalTypeSelect.value;
+        const periodType = el.goalPeriodTypeSelect.value;
+        const relatedEvent = el.goalTournamentSelect.value || "";
+        let startDate = el.goalStartDate.value;
+        let endDate = el.goalEndDate.value;
+        if (goalType === "short") {
+          if (!relatedEvent) {
+            el.goalModalError.textContent = "大会を選択してください。";
+            return;
+          }
+          const td = getTournamentPeriodDates(relatedEvent);
+          startDate = td.startDate;
+          endDate = td.endDate;
+        }
+        if (!userId || !targetItem || targetValue <= 0) {
+          el.goalModalError.textContent = "目標値は0より大きい値を設定してください。";
+          return;
+        }
+        const today = new Date().toISOString().slice(0, 10);
+        if (goalType === "long" && endDate && endDate < today) {
+          el.goalModalError.textContent = "目標期間は現在より未来の日付を設定してください。";
+          return;
+        }
+        const duplicate = state.goals.some((g) =>
+          g.id !== state.editGoalId &&
+          (g.targetScope || "player") === targetScope &&
+          g.userId === userId &&
+          g.targetItem === targetItem &&
+          String(g.targetValue) === String(targetValue) &&
+          (g.relatedEvent || "") === (goalType === "short" ? relatedEvent : "")
+        );
+        if (duplicate) {
+          el.goalModalError.textContent = "同じ目標が既に存在します。";
+          return;
+        }
+        const now = Date.now();
+        const payload = {
+          userId,
+          targetScope,
+          studentName: targetScope === "team" ? "チーム全体" : getPlayerName(userId),
+          goalType,
+          targetItem,
+          targetValue,
+          startDate: startDate || "",
+          endDate: endDate || "",
+          relatedEvent: goalType === "short" ? relatedEvent : "",
+          periodType: goalType === "long" ? periodType : "",
+          status: "ongoing",
+          updatedAt: now,
+        };
+        if (!state.editGoalId) payload.createdAt = now;
+
+        const retriable = (err) => {
+          const c = err?.code ?? "";
+          return c === "unavailable" || c === "network-request-failed" || !navigator.onLine;
+        };
+
+        if (state.editGoalId) {
+          if (typeof SakuraOfflineSync !== "undefined" && !SakuraOfflineSync.isOnline()) {
+            SakuraOfflineSync.enqueue("goal_update", { goalId: state.editGoalId, fields: payload });
+            state.goals = state.goals.map((g) => (g.id === state.editGoalId ? { ...g, ...payload } : g));
+            SakuraOfflineSync.persistAppSnapshot({ goalsList: state.goals });
+            el.goalModal.classList.add("hidden");
+            recalc();
+            return;
+          }
+          try {
+            await db.ref(`goals/${state.editGoalId}`).update(payload);
+          } catch (err) {
+            console.error(err);
+            if (typeof SakuraOfflineSync !== "undefined" && retriable(err)) {
+              SakuraOfflineSync.enqueue("goal_update", { goalId: state.editGoalId, fields: payload });
+              state.goals = state.goals.map((g) => (g.id === state.editGoalId ? { ...g, ...payload } : g));
+              SakuraOfflineSync.persistAppSnapshot({ goalsList: state.goals });
+              el.goalModal.classList.add("hidden");
+              recalc();
+              return;
+            }
+            el.goalModalError.textContent = "保存に失敗しました。通信を確認してください。";
+            return;
+          }
+        } else {
+          if (typeof SakuraOfflineSync !== "undefined" && !SakuraOfflineSync.isOnline()) {
+            const tempId = SakuraOfflineSync.makeTempId("goal");
+            state.goals.push({ id: tempId, ...payload });
+            SakuraOfflineSync.enqueue("goal_push", { tempGoalId: tempId, goalPayload: payload });
+            SakuraOfflineSync.persistAppSnapshot({ goalsList: state.goals });
+            el.goalModal.classList.add("hidden");
+            recalc();
+            return;
+          }
+          try {
+            await db.ref("goals").push(payload);
+          } catch (err) {
+            console.error(err);
+            if (typeof SakuraOfflineSync !== "undefined" && retriable(err)) {
+              const tempId = SakuraOfflineSync.makeTempId("goal");
+              state.goals.push({ id: tempId, ...payload });
+              SakuraOfflineSync.enqueue("goal_push", { tempGoalId: tempId, goalPayload: payload });
+              SakuraOfflineSync.persistAppSnapshot({ goalsList: state.goals });
+              el.goalModal.classList.add("hidden");
+              recalc();
+              return;
+            }
+            el.goalModalError.textContent = "保存に失敗しました。通信を確認してください。";
+            return;
+          }
+        }
+        await loadGoals();
+        el.goalModal.classList.add("hidden");
+        recalc();
+      }
+
+      function askDeleteGoal(goalId) {
+        const goal = state.goals.find((g) => g.id === goalId);
+        if (!goal) return;
+        el.confirmTitle.textContent = "この目標を削除しますか？";
+        el.confirmBody.textContent = `目標: ${getMetricDef(goal.targetItem).label} ${goal.targetValue}\n期間: ${goalRangeLabel(goal)}\nゴミ箱へ移動し、30日以内に復元できます。`;
+        el.confirmModal.classList.remove("hidden");
+        el.confirmOkButton.textContent = "削除";
+        el.confirmOkButton.classList.add("danger");
+        el.confirmOkButton.onclick = async () => {
+          try {
+            if (typeof TrashCore === "undefined") {
+              alert("ゴミ箱モジュールを読み込めません。ページを再読み込みしてください。");
+              return;
+            }
+            const itemName = `${getMetricDef(goal.targetItem).label} ${goal.targetValue}`;
+            if (typeof SakuraOfflineSync !== "undefined" && !SakuraOfflineSync.isOnline()) {
+              SakuraOfflineSync.enqueue("goal_delete", {
+                goalId,
+                itemName: itemName.trim(),
+                originalData: { goalId, goal: { ...goal } },
+              });
+              state.goals = state.goals.filter((g) => g.id !== goalId);
+              delete state.readMap[goalId];
+              saveReadMap();
+              SakuraOfflineSync.persistAppSnapshot({ goalsList: state.goals });
+            } else {
+              try {
+                const snap = await db.ref(`goals/${goalId}`).once("value");
+                const goalData = snap.val();
+                if (!goalData) {
+                  alert("目標が見つかりません。");
+                  return;
+                }
+                await TrashCore.pushTrashItem(db, {
+                  itemType: TrashCore.ITEM_TYPES.goal,
+                  itemId: goalId,
+                  itemName: itemName.trim(),
+                  originalData: { goalId, goal: goalData },
+                });
+                await db.ref(`goals/${goalId}`).remove();
+              } catch (err) {
+                console.error(err);
+                const c = err?.code ?? "";
+                if (
+                  typeof SakuraOfflineSync !== "undefined" &&
+                  (c === "unavailable" || c === "network-request-failed" || !navigator.onLine)
+                ) {
+                  SakuraOfflineSync.enqueue("goal_delete", {
+                    goalId,
+                    itemName: itemName.trim(),
+                    originalData: { goalId, goal: { ...goal } },
+                  });
+                  state.goals = state.goals.filter((g) => g.id !== goalId);
+                } else {
+                  alert("削除に失敗しました。");
+                  return;
+                }
+              }
+              delete state.readMap[goalId];
+              saveReadMap();
+            }
+          } finally {
+            el.confirmModal.classList.add("hidden");
+            el.confirmOkButton.classList.remove("danger");
+            el.confirmOkButton.textContent = "確定";
+          }
+          await loadGoals();
+          recalc();
+          closeGoalNoticeDetailModal();
+        };
+      }
+      function askConfirmGoal(goalId) {
+        const goal = state.goals.find((g) => g.id === goalId);
+        if (!goal) return;
+        const pr = calcGoalProgress(goal);
+        el.confirmTitle.textContent = "目標達成を確定しますか？";
+        el.confirmBody.textContent = `目標: ${getMetricDef(goal.targetItem).label} ${goal.targetValue}${pr.isRate ? "%" : ""}\n現在: ${pr.isRate ? fmtPercent(pr.currentValue) : pr.currentValue.toFixed(1)}\nステータス: ${pr.statusText}`;
+        el.confirmModal.classList.remove("hidden");
+        el.confirmOkButton.textContent = "確定";
+        el.confirmOkButton.classList.remove("danger");
+        el.confirmOkButton.onclick = async () => {
+          const next = pr.currentValue >= pr.target ? "achieved" : "not_achieved";
+          if (typeof SakuraOfflineSync !== "undefined" && !SakuraOfflineSync.isOnline()) {
+            SakuraOfflineSync.enqueue("goal_status", { goalId, status: next });
+            state.goals = state.goals.map((g) =>
+              g.id === goalId ? { ...g, status: next, updatedAt: Date.now() } : g,
+            );
+            SakuraOfflineSync.persistAppSnapshot({ goalsList: state.goals });
+          } else {
+            try {
+              await db.ref(`goals/${goalId}`).update({ status: next, updatedAt: Date.now() });
+            } catch (err) {
+              console.error(err);
+              const c = err?.code ?? "";
+              if (
+                typeof SakuraOfflineSync !== "undefined" &&
+                (c === "unavailable" || c === "network-request-failed" || !navigator.onLine)
+              ) {
+                SakuraOfflineSync.enqueue("goal_status", { goalId, status: next });
+                state.goals = state.goals.map((g) =>
+                  g.id === goalId ? { ...g, status: next, updatedAt: Date.now() } : g,
+                );
+                SakuraOfflineSync.persistAppSnapshot({ goalsList: state.goals });
+              } else {
+                alert("更新に失敗しました。");
+                return;
+              }
+            }
+          }
+          state.readMap[goalId] = true;
+          saveReadMap();
+          el.confirmModal.classList.add("hidden");
+          await loadGoals();
+          recalc();
+          closeGoalNoticeDetailModal();
+        };
+      }
+
+      init();
+    </script>
+    <script src="./notify-core.js"></script>
+    <script src="./match-notice-overlay.js"></script>
+    <script src="./tutorial.js?v=sakura-site-v25"></script>
+    <script src="./site-nav.js?v=sakura-site-v28"></script>
+  </body>
+</html>
