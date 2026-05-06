@@ -1,0 +1,862 @@
+/* 共通サイトナビ（index / analytics / goals）— 文字中心のミニマル */
+:root {
+  --site-nav-h: 50px;
+  --site-nav-bg: #141414;
+  --site-nav-border: rgba(255, 255, 255, 0.12);
+  --site-nav-text: rgba(248, 243, 223, 0.92);
+  --site-nav-accent: #e8c86a;
+}
+
+body.has-site-nav {
+  padding-top: var(--site-nav-h);
+}
+
+.site-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  min-height: var(--site-nav-h);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: rgba(12, 12, 14, 0.45);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.site-nav__inner {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  position: relative;
+}
+
+.site-nav__logo {
+  flex: 0 0 auto;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-size: clamp(0.82rem, 2.1vw, 0.98rem);
+  white-space: nowrap;
+  padding: 4px 6px;
+  margin: 0;
+  color: var(--site-nav-accent);
+}
+
+.site-nav__logo:hover {
+  opacity: 0.88;
+}
+
+.site-nav__logo:focus-visible {
+  outline: 2px solid var(--site-nav-accent);
+  outline-offset: 2px;
+}
+
+.site-nav__logo-short {
+  display: inline;
+}
+
+.site-nav__logo-long {
+  display: none;
+}
+
+.site-nav__links {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+/* 「ENGLISH / 日本語」（PC・ドロワー・チュートリアル共通） */
+.site-nav__link-row {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 0;
+  line-height: 1.25;
+}
+
+.site-nav__link-en {
+  font-size: 1em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.site-nav__link-slash {
+  font-size: 0.88em;
+  font-weight: 400;
+  opacity: 0.48;
+}
+
+.site-nav__link-ja {
+  font-size: 0.76em;
+  font-weight: 600;
+}
+
+.site-nav__links a {
+  text-decoration: none;
+  color: var(--site-nav-text);
+  padding: 4px 8px;
+  display: inline-flex;
+  justify-content: center;
+  font-size: clamp(0.68rem, 1.1vw, 0.8rem);
+}
+
+.site-nav__links a:hover {
+  color: #fff;
+}
+
+.site-nav__links a.site-nav__link--active {
+  color: var(--site-nav-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.site-nav__links a.site-nav__link--active .site-nav__link-en {
+  font-weight: 700;
+}
+
+.site-nav__links a.site-nav__link--active .site-nav__link-slash {
+  opacity: 0.62;
+}
+
+.site-nav__links a:focus-visible {
+  outline: 2px solid var(--site-nav-accent);
+  outline-offset: 2px;
+}
+
+.site-nav__actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.site-nav__bell,
+.site-nav__help {
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--site-nav-text);
+  cursor: pointer;
+}
+
+.site-nav__bell-icon,
+.site-nav__help-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  color: inherit;
+}
+
+.site-nav__bell:hover,
+.site-nav__help:hover {
+  color: #fff;
+}
+
+.site-nav__bell:focus-visible,
+.site-nav__help:focus-visible {
+  outline: 2px solid var(--site-nav-accent);
+  outline-offset: 2px;
+}
+
+/* 手動チュートリアル無効: ? は残して押下で案内のみ（見た目は控えめ） */
+.site-nav__help--tutorial-off {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.site-nav__help--tutorial-off:hover {
+  color: var(--site-nav-text);
+}
+
+.site-nav__bell-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e85d5d;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  display: none;
+}
+
+.site-nav__bell.site-nav__bell--unread .site-nav__bell-badge {
+  display: inline-block;
+}
+
+.site-nav__hamburger {
+  display: none;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--site-nav-text);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.site-nav__hamburger-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.site-nav__hamburger:hover {
+  color: #fff;
+}
+
+.site-nav__hamburger:focus-visible {
+  outline: 2px solid var(--site-nav-accent);
+  outline-offset: 2px;
+}
+
+.site-nav__hamburger.is-open {
+  color: var(--site-nav-accent);
+}
+
+.site-nav__hamburger-icon--close {
+  display: none;
+}
+
+.site-nav__hamburger.is-open .site-nav__hamburger-icon--bars {
+  display: none;
+}
+
+.site-nav__hamburger.is-open .site-nav__hamburger-icon--close {
+  display: inline-block;
+}
+
+.site-nav__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 198;
+  background: rgba(4, 6, 10, 0.08);
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0.28s ease;
+}
+
+.site-nav__backdrop.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* モバイル: ナビ下〜画面下までフル幅（軽いすりガラス・リンクは文字のみ） */
+.site-nav__drawer {
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: var(--site-nav-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: none;
+  z-index: 199;
+  padding: max(28px, 6vh) 20px max(36px, 8vh);
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  background: rgba(10, 10, 12, 0.16);
+  backdrop-filter: blur(12px) saturate(125%);
+  -webkit-backdrop-filter: blur(12px) saturate(125%);
+  border: none;
+  box-shadow: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(12px);
+  transition:
+    opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0.3s ease,
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.site-nav__drawer.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.site-nav__drawer a {
+  text-decoration: none;
+  color: var(--site-nav-text);
+  padding: 12px 16px;
+  display: block;
+  width: 100%;
+  max-width: min(360px, 100%);
+  text-align: center;
+  font-size: clamp(0.95rem, 3.4vw, 1.06rem);
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+.site-nav__drawer a:hover {
+  color: #fff;
+  background: transparent;
+}
+
+.site-nav__drawer a.site-nav__link--active {
+  color: var(--site-nav-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.site-nav__drawer a.site-nav__link--active .site-nav__link-en {
+  font-weight: 700;
+}
+
+.site-nav__drawer a.site-nav__link--active .site-nav__link-slash {
+  opacity: 0.62;
+}
+
+.site-nav__drawer a:focus-visible {
+  outline: 2px solid var(--site-nav-accent);
+  outline-offset: 2px;
+}
+
+.site-nav__tutorial {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.site-nav__tutorial[hidden] {
+  display: none !important;
+}
+
+.site-nav__tutorial-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.site-nav__tutorial-card {
+  position: relative;
+  width: min(92vw, 400px);
+  background: var(--site-nav-bg);
+  border: 1px solid var(--site-nav-border);
+  border-radius: 0;
+  padding: 16px;
+}
+
+.site-nav__tutorial-card h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--site-nav-accent);
+}
+
+.site-nav__tutorial-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-nav__tutorial-step {
+  display: inline-block;
+  margin-right: 0.35rem;
+  opacity: 0.55;
+  font-size: 0.88em;
+  font-weight: 600;
+}
+
+.site-nav__tutorial-list a {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.35rem;
+  padding: 10px 4px;
+  border: none;
+  background: transparent;
+  color: var(--site-nav-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.site-nav__tutorial-list a:hover {
+  color: #fff;
+}
+
+.site-nav__tutorial-close {
+  margin-top: 12px;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 0;
+  border: 1px solid var(--site-nav-border);
+  background: transparent;
+  color: var(--site-nav-text);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* 全ページ共通：通知パネル（ベルから開く） */
+.site-nav__notices {
+  position: fixed;
+  inset: 0;
+  z-index: 248;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.site-nav__notices[hidden] {
+  display: none !important;
+}
+
+/* 開く途中・閉じる途中は DOM に残し、アニメ後に hidden を付ける */
+.site-nav__notices:not([hidden]):not(.site-nav__notices--open) {
+  pointer-events: none;
+}
+
+.site-nav__notices-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.24s ease-out;
+}
+
+.site-nav__notices.site-nav__notices--open .site-nav__notices-backdrop {
+  opacity: 1;
+}
+
+.site-nav__notices-panel {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 100%);
+  box-sizing: border-box;
+  /* タブ切替で中身が変わっても外寸は常に同じ（縦固定。短い画面は 88vh に合わせる） */
+  height: min(600px, 88vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--site-nav-bg);
+  border: 1px solid var(--site-nav-border);
+  padding: 14px 16px 12px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 0.24s ease-out,
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.site-nav__notices.site-nav__notices--open .site-nav__notices-panel {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-nav__notices-backdrop,
+  .site-nav__notices-panel {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.site-nav__notices-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.site-nav__notices-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.site-nav__notices-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--site-nav-accent);
+}
+
+.site-nav__notices-mark-all {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--site-nav-border);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--site-nav-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.site-nav__notices-mark-all:hover {
+  color: #fff;
+  border-color: rgba(255, 214, 88, 0.42);
+}
+
+.site-nav__notices-mark-all:focus-visible {
+  outline: 2px solid var(--site-nav-accent);
+  outline-offset: 2px;
+}
+
+.site-nav__notices-close {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--site-nav-text);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.site-nav__notices-close:hover {
+  color: #fff;
+}
+
+.site-nav__notices-close:focus-visible {
+  outline: 2px solid var(--site-nav-accent);
+  outline-offset: 2px;
+}
+
+/* 通知タブは下の「#siteNavNotices …」ブロックで定義（ページの button 上書き対策） */
+
+.site-nav__notices-subfilters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 10px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 420px) {
+  .site-nav__notices-subfilters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.site-nav__notices-field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--site-nav-text);
+  opacity: 0.88;
+}
+
+.site-nav__notices-field select {
+  min-height: 36px;
+  padding: 4px 6px;
+  border: 1px solid var(--site-nav-border);
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--site-nav-text);
+  font: inherit;
+}
+
+.site-nav__notices-foot-sep {
+  opacity: 0.5;
+}
+
+.site-nav__notices-summary {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: var(--site-nav-text);
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.site-nav__notices-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  gap: 8px;
+  padding-right: 2px;
+}
+
+/* ヘッダー・フィルタ分を除いた余白でも一覧が伸びすぎないよう上限（パネル内スクロールの安定化） */
+#siteNavNoticesList {
+  max-height: min(480px, calc(88vh - 200px));
+}
+
+/* タブ切替時: コンテンツが軽くスライド＋フェードイン */
+.site-nav__notices-list.site-nav__notices-list--anim[data-slide="from-left"] {
+  animation: siteNavNoticePaneFromLeft 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.site-nav__notices-list.site-nav__notices-list--anim[data-slide="from-right"] {
+  animation: siteNavNoticePaneFromRight 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes siteNavNoticePaneFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes siteNavNoticePaneFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #siteNavNotices .smNt__ink {
+    transition: none;
+  }
+
+  .site-nav__notices-list.site-nav__notices-list--anim {
+    animation: none !important;
+  }
+}
+
+.site-nav__notices-placeholder {
+  margin: 8px 0;
+  font-size: 0.88rem;
+  color: var(--site-nav-text);
+  opacity: 0.75;
+}
+
+.site-nav__notice {
+  border: 1px solid var(--site-nav-border);
+  padding: 10px 10px;
+  text-align: left;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.site-nav__notice--unread {
+  border-color: rgba(255, 214, 88, 0.42);
+  background: rgba(255, 214, 88, 0.06);
+}
+
+.site-nav__notice-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--site-nav-text);
+}
+
+.site-nav__notice-title i {
+  margin-right: 6px;
+  color: var(--site-nav-accent);
+}
+
+.site-nav__notice-body {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--site-nav-text);
+  opacity: 0.88;
+}
+
+.site-nav__notice:focus-visible {
+  outline: 2px solid var(--site-nav-accent);
+  outline-offset: 2px;
+}
+
+.site-nav__notices-foot {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--site-nav-border);
+  font-size: 0.82rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.site-nav__notices-foot a {
+  color: var(--site-nav-accent);
+}
+
+.site-nav__bell-error {
+  font-size: 0.7rem;
+  color: #ffb4a7;
+  margin-top: 4px;
+  text-align: center;
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .site-nav__drawer {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .site-nav__links--pc {
+    display: none !important;
+  }
+
+  .site-nav__hamburger {
+    display: inline-flex;
+  }
+
+  .site-nav__logo {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 0;
+    text-align: center;
+    min-width: 0;
+    max-width: calc(100% - 150px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  /* 狭い幅では長文を避け「SAKURA GROUP」のみ表示 */
+  .site-nav__logo-short {
+    display: inline;
+    font-size: clamp(0.72rem, 3.2vw, 0.88rem);
+  }
+
+  .site-nav__logo-long {
+    display: none;
+  }
+
+  /* チュートリアル（?）は通知ベルの隣に常時表示（ハンバーガー内には置かない） */
+  .site-nav__actions {
+    gap: 4px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   通知パネル内タブ（smNt）— 根本から分離。
+   goals.html / analytics.html のインライン `input, select, button {}` が
+   site-nav.css より後に来るため、#siteNavNotices + button 要素型で確実に上書きする。
+   -------------------------------------------------------------------------- */
+
+#siteNavNotices .smNtWrap {
+  margin: 0 0 10px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  height: var(--site-nav-h);
+  min-height: var(--site-nav-h);
+  border-bottom: 1px solid var(--site-nav-border);
+}
+
+#siteNavNotices .smNt {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+#siteNavNotices .smNt__ink {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 50%;
+  height: 2px;
+  background: var(--site-nav-accent);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#siteNavNotices .smNt[data-active="goals"] .smNt__ink {
+  transform: translateX(100%);
+}
+
+/* ページ共通の button リセットより強い（ID + 要素 + クラス） */
+#siteNavNotices button.smNt__btn {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  min-height: var(--site-nav-h);
+  height: 100%;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--site-nav-text);
+  font-size: clamp(0.72rem, 2vw, 0.82rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
+  text-decoration: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#siteNavNotices button.smNt__btn:hover {
+  color: #fff;
+}
+
+#siteNavNotices button.smNt__btn[aria-selected="true"] {
+  color: var(--site-nav-accent);
+}
+
+#siteNavNotices button.smNt__btn:focus-visible {
+  outline: 2px solid var(--site-nav-accent);
+  outline-offset: 2px;
+}
