@@ -1,6 +1,0 @@
-{
-  "rules": {
-    ".read": "auth != null && (auth.token.teamMember === true || auth.token.staff === true)",
-    ".write": "auth != null && auth.token.staff === true"
-  }
-}
