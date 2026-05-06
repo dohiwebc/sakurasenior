@@ -434,21 +434,7 @@
     </style>
   </head>
   <body>
-    <section id="analyticsAuthCard" class="card analytics-auth-card">
-      <h2 style="margin: 0 0 8px; color: var(--accent-strong); font-size: 1.35rem;">Firebase Auth ログイン</h2>
-      <p class="help">分析ページはログイン後に表示されます。</p>
-      <div class="analytics-auth-form">
-        <label>メールアドレス<input id="analyticsAuthEmail" type="email" autocomplete="username" /></label>
-        <label>パスワード<input id="analyticsAuthPassword" type="password" autocomplete="current-password" /></label>
-        <div class="analytics-auth-actions">
-          <button id="analyticsAuthLoginButton" type="button" class="primary">ログイン</button>
-          <button id="analyticsAuthLogoutButton" type="button" class="analytics-action-btn analytics-action-btn--ghost hidden">ログアウト</button>
-        </div>
-        <p id="analyticsAuthStatus" class="help"></p>
-      </div>
-    </section>
-
-    <main id="analyticsAppShell" class="container hidden" aria-hidden="true">
+    <main id="analyticsAppShell" class="container" aria-hidden="false">
       <section class="hero">
         <h1>
           SAKURA GROUP ANALYTICS
@@ -628,13 +614,7 @@
         exportRankingButton: document.getElementById("exportRankingButton"),
         cancelRankingExportButton: document.getElementById("cancelRankingExportButton"),
         confirmRankingExportButton: document.getElementById("confirmRankingExportButton"),
-        authCard: document.getElementById("analyticsAuthCard"),
         appShell: document.getElementById("analyticsAppShell"),
-        authEmail: document.getElementById("analyticsAuthEmail"),
-        authPassword: document.getElementById("analyticsAuthPassword"),
-        authLoginButton: document.getElementById("analyticsAuthLoginButton"),
-        authLogoutButton: document.getElementById("analyticsAuthLogoutButton"),
-        authStatus: document.getElementById("analyticsAuthStatus"),
       };
 
       const graphDefs = [
@@ -1894,22 +1874,6 @@
       let analyticsInitialized = false;
       let analyticsOfflineUiInitialized = false;
 
-      function setAnalyticsAuthStatus(message, isError = false) {
-        if (!el.authStatus) return;
-        el.authStatus.textContent = message || "";
-        el.authStatus.classList.toggle("warn", Boolean(isError));
-      }
-
-      function setAnalyticsAuthUi(user) {
-        const loggedIn = Boolean(user);
-        el.authCard?.classList.toggle("hidden", loggedIn);
-        el.appShell?.classList.toggle("hidden", !loggedIn);
-        el.appShell?.setAttribute("aria-hidden", loggedIn ? "false" : "true");
-        if (!loggedIn) {
-          setAnalyticsAuthStatus("ログインしてください。");
-        }
-      }
-
       function initAnalyticsOfflineUiOnce() {
         if (analyticsOfflineUiInitialized) return;
         analyticsOfflineUiInitialized = true;
@@ -1931,50 +1895,8 @@
         }
       }
 
-      async function startAnalyticsAfterAuth() {
-        setAnalyticsAuthUi(auth.currentUser);
-        if (analyticsInitialized) return;
-        analyticsInitialized = true;
-        initAnalyticsOfflineUiOnce();
-        await init();
-      }
-
-      function bindAnalyticsAuthEvents() {
-        el.authLoginButton?.addEventListener("click", async () => {
-          const email = (el.authEmail?.value || "").trim();
-          const password = el.authPassword?.value || "";
-          if (!email || !password) {
-            setAnalyticsAuthStatus("メールアドレスとパスワードを入力してください。", true);
-            return;
-          }
-          try {
-            el.authLoginButton.disabled = true;
-            setAnalyticsAuthStatus("ログイン中...");
-            await auth.signInWithEmailAndPassword(email, password);
-          } catch (error) {
-            console.error(error);
-            setAnalyticsAuthStatus("ログインに失敗しました。メールアドレスとパスワードを確認してください。", true);
-          } finally {
-            el.authLoginButton.disabled = false;
-          }
-        });
-        el.authPassword?.addEventListener("keydown", (event) => {
-          if (event.key === "Enter") {
-            el.authLoginButton?.click();
-          }
-        });
-        el.authLogoutButton?.addEventListener("click", () => {
-          void auth.signOut();
-        });
-      }
-
-      bindAnalyticsAuthEvents();
-      auth.onAuthStateChanged((user) => {
-        setAnalyticsAuthUi(user);
-        if (user) {
-          void startAnalyticsAfterAuth();
-        }
-      });
+      initAnalyticsOfflineUiOnce();
+      void init().then(() => { analyticsInitialized = true; });
     </script>
     <script src="./notify-core.js"></script>
     <script src="./goal-notice-overlay.js"></script>
