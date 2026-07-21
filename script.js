@@ -1493,7 +1493,7 @@ function renderPlayerManagementList() {
 
       const gradeSelect = document.createElement("select");
       gradeSelect.innerHTML = `
-        <option value="">学年を選択</option>
+        <option value="">未設定</option>
         <option value="1">1年 / ①</option>
         <option value="2">2年 / ②</option>
         <option value="3">3年 / ③</option>
@@ -4065,9 +4065,9 @@ function openMidMatchAddPlayerModal() {
     bodyHtml: `
       <div class="form-grid match-flow-form match-flow-form--grid">
         <label>選手名 <input id="${nameId}" type="text" placeholder="例: 田中 太郎" /></label>
-        <label>学年
+        <label>学年（任意）
           <select id="${gradeId}">
-            <option value="">選択してください</option>
+            <option value="">未設定</option>
             <option value="1">1年 / ①</option>
             <option value="2">2年 / ②</option>
             <option value="3">3年 / ③</option>
@@ -4102,10 +4102,6 @@ function openMidMatchAddPlayerModal() {
           const handedness = document.getElementById(handId)?.value ?? "";
           if (!name) {
             setSaveStatus("選手名を入力してください");
-            return;
-          }
-          if (!grade) {
-            setSaveStatus("学年を選択してください");
             return;
           }
           if (!db) {
@@ -5175,10 +5171,6 @@ async function createPlayer() {
     setCreatePlayerMessage("選手名を入力してください。", true);
     return;
   }
-  if (!grade) {
-    setCreatePlayerMessage("学年を選択してください。", true);
-    return;
-  }
   setCreatePlayerMessage("");
   createPlayerButtonEl.disabled = true;
   try {
@@ -5231,10 +5223,6 @@ async function updatePlayerDetails(playerId, nextName, nextGrade, nextRole, next
     return;
   }
   const guestPlayer = isGuestPlayerId(playerId);
-  if (!guestPlayer && !nextGrade) {
-    setSaveStatus("学年を選択してください");
-    return;
-  }
 
   await getPlayerRef(playerId).update({
     name,
