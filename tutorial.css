@@ -1,0 +1,341 @@
+/* 吹き出し式チュートリアル（全ページ共通） */
+
+#tutorialOverlay.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  background: rgba(0, 0, 0, 0.38);
+  pointer-events: auto;
+}
+
+#tutorialOverlay.tutorial-overlay[hidden] {
+  display: none !important;
+}
+
+.tutorial-highlight {
+  position: fixed;
+  z-index: 11001;
+  border: 3px solid #ffd658;
+  border-radius: 4px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease, opacity 0.2s ease;
+}
+
+.tutorial-highlight--placeholder {
+  opacity: 0.35;
+  border-style: dashed;
+}
+
+/* スマホ幅専用（≤768px）。PC では付かない */
+html.tutorial-is-mobile .tutorial-tooltip {
+  width: min(96vw, 420px);
+  max-height: min(82vh, 560px);
+  padding: 12px 14px 14px;
+}
+
+html.tutorial-is-mobile .tutorial-tooltip-title {
+  font-size: 1rem;
+}
+
+html.tutorial-is-mobile .tutorial-tooltip-body {
+  font-size: 0.86rem;
+}
+
+.tutorial-tooltip {
+  position: fixed;
+  z-index: 11002;
+  width: min(90vw, 400px);
+  max-height: min(78vh, 520px);
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(22, 18, 12, 0.98), rgba(12, 10, 8, 0.99));
+  border: 1px solid rgba(255, 214, 88, 0.42);
+  border-radius: 4px;
+  padding: 14px 16px 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  color: #f8f3df;
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.tutorial-tooltip-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tutorial-tooltip-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #ffd658;
+  line-height: 1.35;
+  font-family: var(--heading-font, "Noto Serif JP", serif);
+}
+
+.tutorial-close-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8f3df;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tutorial-close-btn:hover {
+  background: rgba(255, 214, 88, 0.15);
+}
+
+.tutorial-tooltip-body {
+  margin: 10px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  white-space: pre-line;
+  color: rgba(248, 243, 223, 0.92);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.tutorial-tooltip-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 214, 88, 0.15);
+}
+
+.tutorial-tooltip-footer .tutorial-nav-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tutorial-skip-btn,
+.tutorial-next-btn {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 214, 88, 0.35);
+  background: rgba(255, 230, 180, 0.1);
+  color: #fff8e8;
+  font-size: 0.88rem;
+}
+
+.tutorial-next-btn {
+  background: rgba(255, 214, 88, 0.22);
+  font-weight: 600;
+}
+
+.tutorial-skip-btn:hover,
+.tutorial-next-btn:hover {
+  background: rgba(255, 214, 88, 0.28);
+}
+
+.tutorial-progress {
+  font-size: 0.8rem;
+  color: #beb28a;
+  flex: 1 1 auto;
+  text-align: center;
+  min-width: 120px;
+}
+
+/* セクション選択モーダル */
+#tutorialMenuModal.tutorial-menu-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 11005;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.42);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+#tutorialMenuModal.tutorial-menu-modal[hidden] {
+  display: none !important;
+}
+
+#tutorialMenuModal.tutorial-menu-modal:not([hidden]):not(.is-open) {
+  pointer-events: none;
+}
+
+.tutorial-menu-card {
+  width: min(92vw, 400px);
+  padding: 20px 22px 22px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(26, 22, 16, 0.98), rgba(14, 12, 10, 0.99));
+  border: 1px solid rgba(255, 214, 88, 0.4);
+  color: #f8f3df;
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transform: translateY(10px) scale(0.985);
+  transition: opacity 220ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+#tutorialMenuModal.tutorial-menu-modal.is-open {
+  opacity: 1;
+}
+
+#tutorialMenuModal.tutorial-menu-modal.is-open .tutorial-menu-card {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #tutorialMenuModal.tutorial-menu-modal,
+  .tutorial-menu-card {
+    transition: none;
+  }
+}
+
+.tutorial-menu-card h2 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  color: #ffd658;
+}
+
+.tutorial-menu-card > p {
+  margin: 0 0 16px;
+  font-size: 0.88rem;
+  color: rgba(248, 243, 223, 0.78);
+}
+
+.tutorial-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tutorial-menu-list .tutorial-menu-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  padding: 11px 12px 11px 11px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 214, 88, 0.28);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  color: #f8f3df;
+  font-size: 0.92rem;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tutorial-menu-list .tutorial-menu-choice:hover {
+  background: linear-gradient(135deg, rgba(255, 214, 88, 0.14), rgba(255, 214, 88, 0.04));
+  border-color: rgba(255, 214, 88, 0.45);
+  box-shadow: 0 0 0 1px rgba(255, 214, 88, 0.08);
+}
+
+.tutorial-menu-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: #ffd658;
+  background: radial-gradient(ellipse 80% 80% at 40% 30%, rgba(255, 214, 88, 0.2), rgba(255, 214, 88, 0.04));
+  border: 1px solid rgba(255, 214, 88, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.tutorial-menu-icon-svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.tutorial-menu-label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.tutorial-menu-steps {
+  font-weight: 400;
+  font-size: 0.86em;
+  color: rgba(248, 243, 223, 0.52);
+  letter-spacing: 0;
+}
+
+.tutorial-menu-close {
+  width: 100%;
+  font: inherit;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #beb28a;
+}
+
+/* 手動チュートリアル無効時の ? 押下メッセージ */
+#tutorialManualDisabledToast.tutorial-manual-disabled-toast {
+  position: fixed;
+  z-index: 11080;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  max-width: min(92vw, 360px);
+  padding: 12px 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 214, 88, 0.45);
+  background: linear-gradient(180deg, rgba(28, 24, 18, 0.98), rgba(14, 12, 10, 0.99));
+  color: #f8f3df;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+#tutorialManualDisabledToast.tutorial-manual-disabled-toast[hidden] {
+  display: none !important;
+}
+
+/* チュートリアル表示中: 背面のホイール／タッチは JS で抑止。overflow:hidden は付けない（window スクロールが無効になる端末があるため）。 */
+html.tutorial-scroll-locked,
+body.tutorial-scroll-locked {
+  overscroll-behavior: none;
+}
+
+/* チュートリアル中（本編オーバーレイ or 章選択モーダル）: ログイン状態・閲覧モード見出し・サマリー1行を隠す */
+html:has(#tutorialOverlay:not([hidden])) #loginInfoCard,
+html:has(#tutorialMenuModal:not([hidden])) #loginInfoCard {
+  display: none !important;
+}
+
+html:has(#tutorialOverlay:not([hidden])) #viewerSection > .header-row:first-of-type,
+html:has(#tutorialOverlay:not([hidden])) #viewerSection #viewerSummary,
+html:has(#tutorialMenuModal:not([hidden])) #viewerSection > .header-row:first-of-type,
+html:has(#tutorialMenuModal:not([hidden])) #viewerSection #viewerSummary {
+  display: none !important;
+}
+
+/* scrollIntoView 時に固定ナビ分の余白を CSS で確保（tutorial.js の pads と併用） */
+html:has(#tutorialOverlay:not([hidden])) {
+  scroll-padding-top: max(32px, calc((var(--site-nav-h, 48px) * 2) + 12px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-highlight {
+    transition: none;
+  }
+}
