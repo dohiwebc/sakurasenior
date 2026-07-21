@@ -4014,11 +4014,12 @@ function openUnsavedLeaveModal(onDiscard, onSaveThenLeave) {
 }
 
 function validateLineupDraftAndProceed() {
-  const presentCount = getMatchPresentPlayers().filter((player) => !isGuestPlayerId(player.id)).length;
+  const presentPlayers = getMatchPresentPlayers();
+  const presentCount = presentPlayers.length;
   if (presentCount < LINEUP_STARTER_COUNT) {
     setLineupValidationMessage(
       `<p class="no-margin">❌ 参加選手が不足しています</p>
-       <p class="no-margin">この試合の参加は${presentCount}人です。スタメン${LINEUP_STARTER_COUNT}人を選ぶには、参加状況で欠席を減らしてください。</p>`,
+       <p class="no-margin">この試合で選べる人数は${presentCount}人です。スタメン${LINEUP_STARTER_COUNT}人を選ぶには、参加状況で欠席を減らすか、助っ人を含めてください。</p>`,
       "lineup-msg-error",
     );
     return;
