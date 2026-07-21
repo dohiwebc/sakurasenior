@@ -1357,6 +1357,23 @@ function getMatchPresentPlayers(tournament = getSelectedTournament()) {
   return getTournamentEligiblePlayers(tournament).filter((player) => !isAbsent(player.id));
 }
 
+/** スタメン選択候補（欠席除く。助っ人は表示トグルに関係なく候補に含める） */
+function getLineupSelectablePlayers(tournament = getSelectedTournament()) {
+  const participantIdSet = new Set(getTournamentParticipantIds(tournament));
+  return players.filter((player) => {
+    if (player.active === false) {
+      return false;
+    }
+    if (isAbsent(player.id)) {
+      return false;
+    }
+    if (isGuestPlayerId(player.id)) {
+      return true;
+    }
+    return participantIdSet.has(player.id);
+  });
+}
+
 function getParticipantSelectablePlayers() {
   return players.filter((player) => player.active !== false && !isGuestPlayerId(player.id));
 }
@@ -3637,7 +3654,7 @@ function applySubstitutionToState(inStudentId, outStudentId, timeLabel) {
 
 function seedLineupDraftFromMatchAndRecords() {
   const match = getSelectedMatchNormalized();
-  const activeIds = new Set(getMatchPresentPlayers().map((player) => player.id));
+  const activeIds = new Set(getLineupSelectablePlayers().map((player) => player.id));
   if (matchHasValidSavedLineup(match)) {
     state.lineupDraftIds = [...match.startingMemberIds];
     return;
@@ -3646,7 +3663,7 @@ function seedLineupDraftFromMatchAndRecords() {
     state.lineupDraftIds = match.startingMemberIds.filter((id) => activeIds.has(id));
     return;
   }
-  const fromRecords = getMatchPresentPlayers()
+  const fromRecords = getLineupSelectablePlayers()
     .filter((player) => !isBenched(player.id))
     .map((player) => player.id);
   if (fromRecords.length === LINEUP_STARTER_COUNT) {
@@ -3683,7 +3700,7 @@ function renderLineupPickPanel() {
   if (lineupPickActionsEl) {
     lineupPickActionsEl.classList.remove("hidden");
   }
-  const activePlayers = getMatchPresentPlayers();
+  const activePlayers = getLineupSelectablePlayers();
   lineupPlayerCheckboxListEl.innerHTML = "";
   activePlayers.forEach((player) => {
     const label = document.createElement("label");
@@ -3737,16 +3754,22 @@ function showLineupConfirmSummary() {
       .join("");
     lineupConfirmNamesEl.innerHTML = `<ol class="lineup-confirm-ol">${ordered}</ol>`;
   }
+  const selectableCount = getLineupSelectablePlayers().length;
+  let warningHtml = "";
+  if (selectableCount < LINEUP_STARTER_COUNT) {
+    warningHtml = `<p class="no-margin">⚠️ 助っ人を含めても人数が足りていません（${selectableCount}人 / 必要${LINEUP_STARTER_COUNT}人）。内容を確認して続行してください。</p>`;
+  }
   setLineupValidationMessage(
-    `<p class="no-margin lineup-msg-title-ok">✅ スターティングメンバーが確定しました</p>
+    `${warningHtml}
+     <p class="no-margin lineup-msg-title-ok">✅ スターティングメンバーが確定しました</p>
      <p class="no-margin">選択: ${LINEUP_STARTER_COUNT}人</p>
      <p class="no-margin">残りの選手はベンチ欄に自動で移動します。</p>`,
-    "lineup-msg-ok",
+    warningHtml ? "lineup-msg-warn" : "lineup-msg-ok",
   );
 }
 
 function applyLineupDraftToRecordsAndPersist(starterIds) {
-  const activePlayers = getMatchPresentPlayers();
+  const activePlayers = getLineupSelectablePlayers();
   const starterSet = new Set(starterIds);
   activePlayers.forEach((player) => {
     if (starterSet.has(player.id)) {
@@ -4014,16 +4037,6 @@ function openUnsavedLeaveModal(onDiscard, onSaveThenLeave) {
 }
 
 function validateLineupDraftAndProceed() {
-  const presentPlayers = getMatchPresentPlayers();
-  const presentCount = presentPlayers.length;
-  if (presentCount < LINEUP_STARTER_COUNT) {
-    setLineupValidationMessage(
-      `<p class="no-margin">❌ 参加選手が不足しています</p>
-       <p class="no-margin">この試合で選べる人数は${presentCount}人です。スタメン${LINEUP_STARTER_COUNT}人を選ぶには、参加状況で欠席を減らすか、助っ人を含めてください。</p>`,
-      "lineup-msg-error",
-    );
-    return;
-  }
   const n = state.lineupDraftIds.length;
   if (n === 0) {
     setLineupValidationMessage(
