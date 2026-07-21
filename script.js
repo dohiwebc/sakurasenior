@@ -167,6 +167,7 @@ const newPlayerRoleEl = document.getElementById("newPlayerRole");
 const newPlayerHandednessEl = document.getElementById("newPlayerHandedness");
 const newPlayerMemoEl = document.getElementById("newPlayerMemo");
 const createPlayerButtonEl = document.getElementById("createPlayerButton");
+const createPlayerErrorEl = document.getElementById("createPlayerError");
 const showActiveOnlyButtonEl = document.getElementById("showActiveOnlyButton");
 const toggleGuestVisibilityButtonEl = document.getElementById("toggleGuestVisibilityButton");
 const togglePlayerManagementButtonEl = document.getElementById("togglePlayerManagementButton");
@@ -5153,9 +5154,16 @@ function renderAfterOfflineRestore() {
   void loadRecordsForMatch();
 }
 
+function setCreatePlayerMessage(message = "", isError = false) {
+  if (!createPlayerErrorEl) return;
+  createPlayerErrorEl.textContent = message;
+  createPlayerErrorEl.classList.toggle("hidden", !message);
+  createPlayerErrorEl.classList.toggle("warn", Boolean(isError && message));
+}
+
 async function createPlayer() {
   if (!isStaff()) {
-    setSaveStatus("スタッフのみ選手追加可能");
+    setCreatePlayerMessage("編集モードでのみ選手を追加できます。", true);
     return;
   }
   const name = newPlayerNameEl.value.trim();
@@ -5164,37 +5172,52 @@ async function createPlayer() {
   const handedness = newPlayerHandednessEl.value;
   const memo = newPlayerMemoEl.value.trim();
   if (!name) {
-    setSaveStatus("選手名を入力してください");
+    setCreatePlayerMessage("選手名を入力してください。", true);
     return;
   }
   if (!grade) {
-    setSaveStatus("学年を選択してください");
+    setCreatePlayerMessage("学年を選択してください。", true);
     return;
   }
-  const ref = getPlayersRef().push();
-  await ref.set({
-    id: ref.key,
-    name,
-    grade,
-    role,
-    handedness,
-    memo,
-    active: true,
-    order: players.length,
-    createdAt: firebase.database.ServerValue.TIMESTAMP,
-  });
-  newPlayerNameEl.value = "";
-  newPlayerGradeEl.value = "";
-  newPlayerRoleEl.value = "";
-  newPlayerHandednessEl.value = "";
-  newPlayerMemoEl.value = "";
-  playerManagementCreateAreaEl.classList.add("hidden");
-  togglePlayerManagementButtonEl.textContent = `+ ${togglePlayerManagementButtonEl.dataset.defaultLabel}`;
-  await loadPlayersFromRealtimeDatabase();
-  state.selectedPlayerId = ref.key;
-  renderTabs();
-  renderStats();
-  setSaveStatus("選手を追加しました");
+  setCreatePlayerMessage("");
+  createPlayerButtonEl.disabled = true;
+  try {
+    const ref = getPlayersRef().push();
+    await ref.set({
+      id: ref.key,
+      name,
+      grade,
+      role,
+      handedness,
+      memo,
+      active: true,
+      order: players.length,
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+    });
+    newPlayerNameEl.value = "";
+    newPlayerGradeEl.value = "";
+    newPlayerRoleEl.value = "";
+    newPlayerHandednessEl.value = "";
+    newPlayerMemoEl.value = "";
+    playerManagementCreateAreaEl.classList.add("hidden");
+    togglePlayerManagementButtonEl.textContent = `+ ${togglePlayerManagementButtonEl.dataset.defaultLabel}`;
+    await loadPlayersFromRealtimeDatabase();
+    state.selectedPlayerId = ref.key;
+    renderTabs();
+    renderStats();
+    setCreatePlayerMessage("選手を追加しました。");
+    setSaveStatus("選手を追加しました");
+  } catch (error) {
+    console.error(error);
+    const code = error?.code ?? "";
+    if (code === "permission-denied") {
+      setCreatePlayerMessage("Firebase の書き込み権限がありません。Database ルールを確認してください。", true);
+    } else {
+      setCreatePlayerMessage(`選手の追加に失敗しました: ${error?.message || error}`, true);
+    }
+  } finally {
+    createPlayerButtonEl.disabled = !isStaff();
+  }
 }
 
 async function updatePlayerDetails(playerId, nextName, nextGrade, nextRole, nextHandedness, nextMemo) {
@@ -6404,6 +6427,7 @@ toggleMatchEditButtonEl.addEventListener("click", () => {
 togglePlayerManagementButtonEl.addEventListener("click", () => {
   toggleCreateArea(playerManagementCreateAreaEl, togglePlayerManagementButtonEl);
   if (!playerManagementCreateAreaEl.classList.contains("hidden")) {
+    setCreatePlayerMessage("");
     newPlayerNameEl.focus();
   }
 });
