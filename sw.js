@@ -1,5 +1,5 @@
 /* さくらマッチ: 静的アセットのオフライン閲覧用 Service Worker */
-const CACHE_NAME = "sakura-site-v72";
+const CACHE_NAME = "sakura-site-v73";
 const CORE_ASSETS = [
   "./index.html",
   "./goals.html",
@@ -15,7 +15,7 @@ const CORE_ASSETS = [
   "./trash-panel.css",
   "./goal-notice-overlay.css",
   "./match-notice-overlay.css",
-  "./script.js?v=sakura-site-v43",
+  "./script.js?v=sakura-site-v44",
   "./offline-sync-core.js",
   "./offline-ui.js",
   "./trash-core.js",
