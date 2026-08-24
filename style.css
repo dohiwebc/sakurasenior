@@ -2216,6 +2216,59 @@ body.has-site-nav #playerProfileModal .profile-modal-card {
   gap: 10px;
   overflow-x: auto;
   padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 選手タブセクション（見出し・フィルタ・タブ一覧） */
+.player-tabs-shell {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "title toolbar"
+    "tabs tabs";
+  gap: 8px 10px;
+  align-items: center;
+}
+
+.player-tabs-title {
+  grid-area: title;
+  margin: 0;
+}
+
+.player-tabs-toolbar {
+  grid-area: toolbar;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.player-tabs-filter-actions,
+.player-tabs-layout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#step3TabsSection #playerTabs.tabs {
+  grid-area: tabs;
+}
+
+.tabs.tabs--two-rows {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.tabs.tabs--two-rows .tabs-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  width: max-content;
+  min-width: 100%;
 }
 
 .tab {
@@ -2252,20 +2305,29 @@ body.has-site-nav #playerProfileModal .profile-modal-card {
 }
 
 #statsArea .row {
-  justify-content: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  flex-direction: row;
-  flex-wrap: nowrap;
   padding: 10px 0;
   gap: 12px;
 }
 
 #statsArea .row > span:first-child {
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.35;
+  padding-right: 8px;
 }
 
 #statsArea .counter {
   gap: 8px;
+  justify-self: end;
+  flex-shrink: 0;
+}
+
+#statsArea .row > .value {
+  justify-self: end;
+  text-align: right;
 }
 
 #statsArea .btn {
@@ -2282,16 +2344,6 @@ body.has-site-nav #playerProfileModal .profile-modal-card {
 
 #step3StatsSection #togglePlayerActiveButton {
   display: none !important;
-}
-
-@media (min-width: 1024px) {
-  #statsArea .row {
-    justify-content: space-between;
-  }
-
-  #statsArea .counter {
-    margin-left: auto;
-  }
 }
 
 .counter {
@@ -2522,27 +2574,72 @@ body.has-site-nav #playerProfileModal .profile-modal-card {
     margin-bottom: 10px;
   }
 
-  #step3TabsSection .header-row,
+  #step3TabsSection .player-tabs-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "title"
+      "toolbar"
+      "tabs";
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  #step3TabsSection .player-tabs-title {
+    grid-area: title;
+    width: 100%;
+    font-size: 1.05rem;
+    line-height: 1.2;
+  }
+
+  #step3TabsSection .player-tabs-toolbar {
+    grid-area: toolbar;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  #step3TabsSection .player-tabs-filter-actions,
+  #step3TabsSection .player-tabs-layout-actions {
+    display: contents;
+  }
+
+  #step3TabsSection #playerTabs.tabs {
+    grid-area: tabs;
+  }
+
+  #step3TabsSection .player-tabs-filter-actions .sub-btn,
+  #step3TabsSection .player-tabs-layout-actions .sub-btn {
+    min-height: 26px;
+    padding: 2px 7px;
+    font-size: 10px;
+    line-height: 1.2;
+    border-radius: 8px;
+    letter-spacing: 0;
+  }
+
   #step3StatsSection .header-row {
     gap: 6px;
   }
 
-  #step3TabsSection h2,
-  #currentPlayerName {
-    font-size: 1.15rem;
-    line-height: 1.2;
-  }
-
-  #step3TabsSection .login-actions,
   #step3StatsSection .login-actions {
-    gap: 6px;
+    gap: 4px;
   }
 
-  #step3TabsSection .sub-btn,
   #step3StatsSection .sub-btn {
-    min-height: 30px;
-    padding: 4px 10px;
-    font-size: 11px;
+    min-height: 26px;
+    padding: 2px 7px;
+    font-size: 10px;
+    line-height: 1.2;
+    border-radius: 8px;
+    letter-spacing: 0;
+  }
+
+  #currentPlayerName {
+    font-size: 1.05rem;
+    line-height: 1.2;
   }
 
   #playerBenchStatus {
@@ -2565,12 +2662,9 @@ body.has-site-nav #playerProfileModal .profile-modal-card {
   }
 
   #statsArea .row {
-    display: grid;
-    grid-template-columns: minmax(8.2em, 1fr) auto;
-    align-items: center;
-    padding: 5px 0;
+    grid-template-columns: minmax(7.5em, 1fr) auto;
     gap: 8px;
-    flex-direction: row;
+    padding: 5px 0;
   }
 
   #statsArea .row > span:first-child {
@@ -2579,9 +2673,7 @@ body.has-site-nav #playerProfileModal .profile-modal-card {
   }
 
   #statsArea .counter {
-    width: auto;
     gap: 5px;
-    justify-content: flex-end;
   }
 
   #statsArea .btn {
@@ -2655,12 +2747,6 @@ body.has-site-nav #playerProfileModal .profile-modal-card {
   .roster-panel-compact.card {
     padding: 10px 10px 12px;
     border-radius: 16px;
-  }
-}
-
-@media (max-width: 900px) {
-  .roster-panel-compact .roster-columns {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -3065,45 +3151,166 @@ body.has-site-nav #playerProfileModal .profile-modal-card {
   gap: 8px 10px;
 }
 
-/* 狭い幅: スタメン・ベンチ・欠席をアコーディオン（初期は閉じ） */
-@media (max-width: 900px) {
+/* スマホ幅: スタメン・ベンチ・欠席をアコーディオン（初期は閉じ） */
+@media (max-width: 640px) {
   .roster-panel-compact .roster-column-title--desktop-only {
     display: none;
   }
 
-  .roster-panel-compact .roster-roster-accordion-btn {
+  .roster-panel-compact .roster-columns {
     display: flex;
-    margin: 0 0 2px;
-    min-height: 38px;
-    padding: 4px 2px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: inherit;
-    letter-spacing: 0.02em;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
   }
 
-  .roster-panel-compact .roster-roster-accordion-btn span:last-child {
-    font-size: 0.95rem;
+  .roster-panel-compact .roster-column--accordion {
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+    overflow: hidden;
   }
 
   .roster-panel-compact .roster-column--accordion + .roster-column--accordion {
-    margin-top: 6px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .roster-panel-compact .roster-roster-accordion-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    margin: 0;
+    min-height: 44px;
+    padding: 10px 12px;
+    font-family: var(--body-font);
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: rgba(255, 234, 170, 0.95);
+    letter-spacing: 0.03em;
+    background: rgba(255, 214, 88, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .roster-panel-compact .roster-roster-accordion-btn span:first-child {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .roster-panel-compact .roster-roster-accordion-btn span:last-child {
+    flex: 0 0 auto;
+    font-size: 1.05rem;
+    line-height: 1;
+    opacity: 0.88;
   }
 
   .roster-panel-compact .roster-accordion-body {
-    margin-top: 2px;
+    margin-top: 0;
+  }
+
+  .roster-panel-compact .roster-accordion-body:not(.hidden) {
+    padding: 8px;
+  }
+
+  .roster-panel-compact .roster-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .roster-panel-compact .roster-row {
+    margin-bottom: 0;
+    padding: 4px 6px;
+    gap: 6px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .roster-panel-compact .roster-row--sortable,
+  .roster-panel-compact .roster-row--with-grip {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    grid-template-rows: auto;
+    align-items: center;
+  }
+
+  .roster-panel-compact .roster-row--with-grip:not(.roster-row--sortable) {
+    grid-template-columns: 20px minmax(0, 1fr);
+  }
+
+  .roster-panel-compact .roster-row--sortable .roster-drag-grip,
+  .roster-panel-compact .roster-row--with-grip .roster-drag-grip {
+    grid-row: auto;
+    align-self: center;
+    width: 20px;
+    min-height: 28px;
+    margin: 0;
+  }
+
+  .roster-panel-compact .roster-drag-grip--decorative {
+    pointer-events: none;
+    opacity: 0.28;
+  }
+
+  .roster-panel-compact .roster-row--sortable .roster-row-main,
+  .roster-panel-compact .roster-row--with-grip .roster-row-main {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .roster-panel-compact .roster-row--sortable .roster-row-actions {
+    grid-column: 3;
+    justify-content: flex-end;
+    width: auto;
+  }
+
+  .roster-panel-compact .roster-row-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.25;
+    font-size: 0.78rem;
+  }
+
+  .roster-panel-compact .roster-row-sub {
+    margin-top: 0;
+    font-size: 0.62rem;
+    line-height: 1.15;
+  }
+
+  .roster-panel-compact .roster-row-btn.sub-btn {
+    min-height: 26px;
+    padding: 3px 8px;
+    font-size: 0.65rem;
+  }
+
+  .roster-panel-compact .roster-sort-hint {
+    font-size: 0.64rem;
+    line-height: 1.4;
+  }
+
+  .roster-panel-compact .roster-empty-message {
+    padding: 2px 2px 4px;
   }
 }
 
-@media (min-width: 901px) {
+@media (min-width: 641px) {
   .roster-panel-compact .roster-roster-accordion-btn {
     display: none !important;
   }
 
   .roster-panel-compact .roster-column-title--desktop-only {
     display: block;
+  }
+
+  .roster-panel-compact .roster-drag-grip--decorative {
+    display: none;
+  }
+
+  .roster-panel-compact .roster-row--with-grip:not(.roster-row--sortable) {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   #startersRosterAccordionBody.hidden,
@@ -3147,9 +3354,126 @@ body.has-site-nav #playerProfileModal .profile-modal-card {
   gap: 6px 6px;
   margin-bottom: 4px;
   padding: 5px 7px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.09);
   background: rgba(0, 0, 0, 0.16);
+  transition:
+    transform 0.22s cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 0.22s cubic-bezier(0.32, 0.72, 0, 1),
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.roster-sort-hint {
+  margin: 6px 0 0;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: rgba(255, 234, 170, 0.78);
+}
+
+.roster-row--sortable {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.roster-drag-grip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-height: 34px;
+  margin: -2px 0 -2px -2px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.72) 1.5px, transparent 1.6px) 5px 8px / 7px 6px no-repeat,
+    radial-gradient(circle, rgba(255, 255, 255, 0.72) 1.5px, transparent 1.6px) 5px 14px / 7px 6px no-repeat,
+    radial-gradient(circle, rgba(255, 255, 255, 0.72) 1.5px, transparent 1.6px) 5px 20px / 7px 6px no-repeat,
+    radial-gradient(circle, rgba(255, 255, 255, 0.72) 1.5px, transparent 1.6px) 12px 8px / 7px 6px no-repeat,
+    radial-gradient(circle, rgba(255, 255, 255, 0.72) 1.5px, transparent 1.6px) 12px 14px / 7px 6px no-repeat,
+    radial-gradient(circle, rgba(255, 255, 255, 0.72) 1.5px, transparent 1.6px) 12px 20px / 7px 6px no-repeat;
+  background-color: transparent;
+  opacity: 0.5;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.roster-drag-grip:hover,
+.roster-drag-grip:focus-visible {
+  opacity: 0.82;
+  background-color: rgba(255, 255, 255, 0.06);
+  outline: none;
+}
+
+.roster-drag-grip:active {
+  cursor: grabbing;
+  opacity: 1;
+}
+
+.roster-body--sorting .roster-row {
+  transition: none;
+}
+
+.roster-body--sorting .roster-row:not(.roster-row-chosen):not(.roster-row-dragging):not(.roster-row-ghost):not(.roster-row-fallback) {
+  animation: roster-wiggle 0.34s ease-in-out infinite alternate;
+}
+
+@keyframes roster-wiggle {
+  from {
+    transform: rotate(-0.35deg);
+  }
+  to {
+    transform: rotate(0.35deg);
+  }
+}
+
+.roster-row-chosen:not(.roster-row-fallback) {
+  border-color: rgba(255, 214, 88, 0.42);
+  background: rgba(255, 214, 88, 0.08);
+}
+
+/* Sortable が translate3d でカーソル追従するため transform は上書きしない */
+.roster-row-dragging:not(.roster-row-fallback) {
+  opacity: 0 !important;
+}
+
+.roster-row-fallback {
+  opacity: 1 !important;
+  transition: none !important;
+  pointer-events: none;
+  box-sizing: border-box;
+  border-color: rgba(255, 214, 88, 0.55);
+  background: linear-gradient(180deg, rgba(36, 32, 24, 0.98), rgba(18, 16, 12, 0.98));
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 214, 88, 0.18);
+  z-index: 1200;
+  will-change: transform;
+}
+
+.roster-row-ghost {
+  opacity: 0.28 !important;
+  border-style: dashed;
+  border-color: rgba(255, 214, 88, 0.35);
+  background: rgba(255, 214, 88, 0.05);
+}
+
+body.roster-sort-active {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roster-body--sorting .roster-row:not(.roster-row-chosen):not(.roster-row-dragging):not(.roster-row-ghost):not(.roster-row-fallback) {
+    animation: none;
+  }
+
+  .roster-row {
+    transition: none;
+  }
 }
 
 .roster-row-main {
@@ -3681,6 +4005,218 @@ body.has-site-nav #playerProfileModal .profile-modal-card {
   box-shadow: 0 0 0 1px rgba(255, 220, 120, 0.15);
 }
 
+/* ===== Tablet (641px–1024px): 横スマホ非想定・タブレット向け ===== */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .container {
+    padding: 10px 22px 56px;
+  }
+
+  .card {
+    padding: 18px 20px;
+    border-radius: 20px;
+  }
+
+  h1 {
+    font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+  }
+
+  #tournamentCreateArea.form-grid,
+  #tournamentEditArea.form-grid,
+  #matchCreateArea.form-grid,
+  #matchEditArea.form-grid,
+  #step1Section > .form-grid,
+  #step2Section > .form-grid,
+  #playerManagementCreateArea.form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .opponent-team-editor,
+  .opponent-team-shortcuts,
+  #tournamentCreateArea > .login-actions,
+  #tournamentEditArea > .login-actions,
+  #matchCreateArea > .login-actions,
+  #matchEditArea > .login-actions,
+  #step2AttendanceSection > .login-actions,
+  #step2LineupSection > .login-actions {
+    grid-column: 1 / -1;
+  }
+
+  .card.login-info-floating {
+    width: min(240px, calc(100vw - 24px));
+  }
+
+  .header-row {
+    gap: 10px 14px;
+  }
+
+  .login-actions {
+    flex-wrap: wrap;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sort-row,
+  .dual-filter-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .viewer-table {
+    min-width: 880px;
+  }
+
+  .viewer-table-wrap {
+    margin-top: 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .lineup-checkbox-list,
+  .attendance-player-list {
+    max-height: min(58vh, 480px);
+  }
+
+  /* 記録画面 step3: ロスターは全幅のまま、選手タブ＋記録のみ左右分割 */
+  .roster-panel-compact .roster-columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #step3Section:not(.hidden) {
+    display: grid;
+    grid-template-columns: minmax(220px, 34fr) minmax(0, 66fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  #step3Section > #lineupIntegrityBanner,
+  #step3Section > #step3InfoSection,
+  #step3Section > #step3RostersSection {
+    grid-column: 1 / -1;
+  }
+
+  #step3Section > #step3TabsSection {
+    grid-column: 1;
+    align-self: start;
+    position: sticky;
+    top: calc(var(--site-nav-h, 50px) + 10px);
+  }
+
+  #step3Section > #step3StatsSection {
+    grid-column: 2;
+  }
+
+  #step3TabsSection .player-tabs-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "title"
+      "tabs"
+      "filter";
+    align-items: stretch;
+  }
+
+  #step3TabsSection .player-tabs-title {
+    font-size: 1rem;
+  }
+
+  #step3TabsSection .player-tabs-toolbar {
+    display: contents;
+  }
+
+  #step3TabsSection .player-tabs-filter-actions {
+    grid-area: filter;
+    margin-top: 4px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #step3TabsSection .player-tabs-layout-actions {
+    display: none;
+  }
+
+  #step3TabsSection #togglePlayerTabsLayoutButton {
+    display: none;
+  }
+
+  #step3TabsSection #playerTabs.tabs {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 6px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: min(68vh, 620px);
+    padding-bottom: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #step3TabsSection #playerTabs.tabs.tabs--two-rows {
+    gap: 6px;
+  }
+
+  #step3TabsSection #playerTabs.tabs.tabs--two-rows .tabs-row {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    width: 100%;
+    min-width: 0;
+    gap: 6px;
+  }
+
+  #step3TabsSection .tab {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 46px;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    line-height: 1.35;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(0, 0, 0, 0.16);
+    box-shadow: none;
+  }
+
+  #step3TabsSection .tab.active {
+    background: linear-gradient(135deg, #f0b90b, #ffd84d);
+    border-color: rgba(255, 234, 140, 0.9);
+  }
+
+  #step3InfoSection .header-row .save-area {
+    flex-wrap: wrap;
+  }
+
+  #statsArea .row {
+    grid-template-columns: minmax(8em, 1fr) auto;
+    gap: 10px;
+  }
+
+  #statsArea .btn {
+    width: 46px;
+    height: 46px;
+    font-size: 18px;
+  }
+
+  #statsArea .value {
+    min-width: 34px;
+    font-size: 1.08rem;
+  }
+
+  .tab {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .player-mgmt-fields.player-edit-fields {
+    grid-template-columns: minmax(180px, 1.2fr) repeat(3, minmax(120px, 1fr));
+  }
+
+  .match-flow-modal-card {
+    width: min(92vw, 640px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -3688,4 +4224,37 @@ body.has-site-nav #playerProfileModal .profile-modal-card {
     animation: none !important;
     transition: none !important;
   }
+}
+
+.stat-change-toast {
+  position: fixed;
+  z-index: 120;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%) translateY(10px);
+  max-width: min(92vw, 480px);
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 214, 88, 0.42);
+  background: linear-gradient(180deg, rgba(28, 24, 18, 0.96), rgba(12, 10, 8, 0.98));
+  color: #f8f3df;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 0.18s var(--ease-out-soft),
+    transform 0.18s var(--ease-out-soft);
+}
+
+.stat-change-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.stat-change-toast.hidden {
+  display: none;
 }

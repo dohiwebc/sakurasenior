@@ -585,18 +585,11 @@
       fb
         .database()
         .ref("siteSettings")
-        .once(
-          "value",
-          (snap) => {
-            const raw = snap.val();
-            const o = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
-            applyTutorialHelpButtonVisibility(o.tutorialManualEnabled !== false);
-          },
-          (err) => {
-            console.warn("[site-nav] siteSettings 再取得拒否", err);
-            applyTutorialHelpButtonVisibility(true);
-          },
-        );
+        .once("value", (snap) => {
+          const raw = snap.val();
+          const o = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+          applyTutorialHelpButtonVisibility(o.tutorialManualEnabled !== false);
+        });
     } catch (err) {
       console.warn("[site-nav] siteSettings 再取得に失敗", err);
     }
@@ -635,13 +628,8 @@
         applyTutorialHelpButtonVisibility(o.tutorialManualEnabled !== false);
       };
       siteSettingsTutorialManualListenerAttached = true;
-      ref.once("value", applyFromSnap, (err) => {
-        console.warn("[site-nav] siteSettings 取得拒否", err);
-        applyTutorialHelpButtonVisibility(true);
-      });
-      ref.on("value", applyFromSnap, (err) => {
-        console.warn("[site-nav] siteSettings 購読拒否", err);
-      });
+      ref.once("value", applyFromSnap);
+      ref.on("value", applyFromSnap);
     } catch (err) {
       siteSettingsTutorialManualListenerAttached = false;
       console.warn("[site-nav] siteSettings 購読に失敗", err);

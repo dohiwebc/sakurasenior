@@ -761,6 +761,16 @@ body.is-staff-mode .site-nav__edit-login {
   }
 }
 
+@media (min-width: 769px) {
+  .site-nav__logo-short {
+    display: none;
+  }
+
+  .site-nav__logo-long {
+    display: inline;
+  }
+}
+
 @media (max-width: 768px) {
   .site-nav__links--pc {
     display: none !important;

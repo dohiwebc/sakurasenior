@@ -214,6 +214,10 @@
       matchType: matchPayload.matchType ?? "大会",
       startingMemberIds: Array.isArray(matchPayload.startingMemberIds) ? matchPayload.startingMemberIds : [],
       substitutions: Array.isArray(matchPayload.substitutions) ? matchPayload.substitutions : [],
+      staffRosterOrder:
+        matchPayload.staffRosterOrder && typeof matchPayload.staffRosterOrder === "object"
+          ? matchPayload.staffRosterOrder
+          : { starters: [], bench: [] },
       createdAt: firebase.database.ServerValue.TIMESTAMP,
       updatedAt: firebase.database.ServerValue.TIMESTAMP,
     });
@@ -226,7 +230,7 @@
 
   async function processMatchUpdate(db, firebase, queue, item) {
     const p = rewritePayloadIds(queue, item.payload);
-    const { tournamentId, matchId, opponent, stage, opponentCategory, startingMemberIds, substitutions } = p;
+    const { tournamentId, matchId, opponent, stage, opponentCategory, startingMemberIds, substitutions, staffRosterOrder } = p;
     const mid = resolveMatchId(queue, matchId);
     const patch = { updatedAt: firebase.database.ServerValue.TIMESTAMP };
     if (typeof opponent === "string") patch.opponent = opponent;
@@ -234,6 +238,7 @@
     if (typeof opponentCategory === "string") patch.opponentCategory = opponentCategory;
     if (Array.isArray(startingMemberIds)) patch.startingMemberIds = startingMemberIds;
     if (substitutions !== undefined) patch.substitutions = substitutions;
+    if (staffRosterOrder && typeof staffRosterOrder === "object") patch.staffRosterOrder = staffRosterOrder;
     await db.ref(`matches/${tournamentId}/${mid}`).update(patch);
   }
 
@@ -244,12 +249,8 @@
     const patch = { ...(matchPatch || {}) };
     delete patch.updatedAt;
     patch.updatedAt = firebase.database.ServerValue.TIMESTAMP;
-    const updates = {};
-    Object.entries(patch).forEach(([key, value]) => {
-      updates[`matches/${tournamentId}/${mid}/${key}`] = value;
-    });
-    updates[`records/${tournamentId}/${mid}`] = records || {};
-    await db.ref().update(updates);
+    await db.ref(`matches/${tournamentId}/${mid}`).update(patch);
+    await db.ref(`records/${tournamentId}/${mid}`).set(records || {});
   }
 
   async function processMatchDelete(db, queue, item) {
@@ -488,9 +489,15 @@
     if (!("serviceWorker" in global.navigator)) return Promise.resolve(false);
     const protocol = global.location?.protocol;
     if (protocol === "file:" || protocol === "null:") return Promise.resolve(false);
+    const SW_VERSION = "sakura-sw-v74";
+    const base = String(scriptUrl || "./sw.js").split("?")[0];
+    const url = `${base}?v=${SW_VERSION}`;
     return global.navigator.serviceWorker
-      .register(scriptUrl)
-      .then(() => true)
+      .register(url, { updateViaCache: "none" })
+      .then((registration) => {
+        registration.update().catch(() => {});
+        return true;
+      })
       .catch((e) => {
         console.warn("SW register failed", e);
         return false;

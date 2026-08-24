@@ -14,13 +14,10 @@ if (typeof SakuraOfflineSync !== "undefined" && firebaseConfig.projectId) {
   SakuraOfflineSync.configureSyncContext({ projectId: firebaseConfig.projectId });
 }
 
-/** DBに選手がいないときの初期投入用。別チーム運用では空のまま（Firebase のみが正） */
+
 const FALLBACK_PLAYERS = [];
 
-/**
- * 閲覧モードで「選手名」ソート時の優先順。先頭ほど先に並ぶ。
- * 空なら五十音順（localeCompare）のみ。チーム固有の並びが必要なら Firebase の name と同じ文字列を並べる。
- */
+/** 閲覧モードで「選手名」ソート時の表示順（Firebase の name と完全一致）。空なら五十音順のみ。 */
 const VIEWER_ROSTER_NAME_ORDER = [];
 
 let players = [...FALLBACK_PLAYERS];
@@ -55,6 +52,24 @@ const ROLE_LABELS = {
 
 const CIRCLED_NUMBERS = ["", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳"];
 
+const PLAYER_TABS_TWO_ROWS_KEY = "sakuraSeniorPlayerTabsTwoRows";
+
+function getPlayerTabsTwoRowsPreference() {
+  try {
+    return globalThis.localStorage?.getItem(PLAYER_TABS_TWO_ROWS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function savePlayerTabsTwoRowsPreference(twoRows) {
+  try {
+    globalThis.localStorage?.setItem(PLAYER_TABS_TWO_ROWS_KEY, twoRows ? "1" : "0");
+  } catch {
+    /* noop */
+  }
+}
+
 const state = {
   selectedPlayerId: players[0]?.id ?? "",
   records: {},
@@ -76,8 +91,9 @@ const state = {
   viewerDetailSortKey: "name",
   viewerDetailSortOrder: "asc",
   currentStep: 1,
-  showActiveOnly: false,
-  showGuestPlayers: true,
+  showActiveOnly: true,
+  playerTabsTwoRows: getPlayerTabsTwoRowsPreference(),
+  showGuestPlayers: false,
   newTournamentParticipantIds: [],
   editTournamentParticipantIds: [],
   autoSaveTimerId: null,
@@ -86,7 +102,7 @@ const state = {
   currentMatchSaveHistory: [],
   currentMatchLastUpdatedAt: null,
   exportSelectedTournamentIds: [],
-  /** 試合ドキュメントに保存する途中交代ログ */
+  /** @deprecated 途中交代廃止。互換のため空配列のみ保持 */
   matchSubstitutions: [],
   /** スタメン選択UI: 'pick' | 'confirm' */
   lineupUiPhase: "pick",
@@ -169,6 +185,7 @@ const newPlayerMemoEl = document.getElementById("newPlayerMemo");
 const createPlayerButtonEl = document.getElementById("createPlayerButton");
 const createPlayerErrorEl = document.getElementById("createPlayerError");
 const showActiveOnlyButtonEl = document.getElementById("showActiveOnlyButton");
+const togglePlayerTabsLayoutButtonEl = document.getElementById("togglePlayerTabsLayoutButton");
 const toggleGuestVisibilityButtonEl = document.getElementById("toggleGuestVisibilityButton");
 const togglePlayerManagementButtonEl = document.getElementById("togglePlayerManagementButton");
 const playerManagementSectionEl = document.getElementById("playerManagementSection");
@@ -319,6 +336,10 @@ const matchFlowModalTitleEl = document.getElementById("matchFlowModalTitle");
 const matchFlowModalBodyEl = document.getElementById("matchFlowModalBody");
 const matchFlowModalActionsEl = document.getElementById("matchFlowModalActions");
 const matchFlowModalBackdropEl = document.getElementById("matchFlowModalBackdrop");
+const statChangeToastEl = document.getElementById("statChangeToast");
+let statChangeToastHideTimerId = null;
+let statChangeToastRemoveTimerId = null;
+let rosterSortableInstances = [];
 const checkModeSectionEl = document.getElementById("checkModeSection");
 const checkModeSummaryEl = document.getElementById("checkModeSummary");
 const checkModeListEl = document.getElementById("checkModeList");
@@ -468,6 +489,42 @@ function normalizeTournament(id, value = {}) {
   };
 }
 
+function normalizeStaffRosterOrder(value) {
+  if (!value || typeof value !== "object") {
+    return { starters: [], bench: [] };
+  }
+  const starters = Array.isArray(value.starters)
+    ? value.starters.filter((id) => typeof id === "string" && id)
+    : [];
+  const bench = Array.isArray(value.bench)
+    ? value.bench.filter((id) => typeof id === "string" && id)
+    : [];
+  return { starters, bench };
+}
+
+/** 記録画面専用の並び（閲覧側には使わない） */
+function sortPlayersByStaffOrderIds(playerList, orderIds) {
+  if (!Array.isArray(orderIds) || !orderIds.length || !playerList.length) {
+    return playerList;
+  }
+  const byId = Object.fromEntries(playerList.map((player) => [player.id, player]));
+  const ordered = [];
+  const seen = new Set();
+  orderIds.forEach((id) => {
+    const player = byId[id];
+    if (player) {
+      ordered.push(player);
+      seen.add(id);
+    }
+  });
+  playerList.forEach((player) => {
+    if (!seen.has(player.id)) {
+      ordered.push(player);
+    }
+  });
+  return ordered;
+}
+
 function normalizeMatch(id, value = {}) {
   const startingMemberIds = Array.isArray(value.startingMemberIds)
     ? value.startingMemberIds.filter((x) => typeof x === "string" && x)
@@ -487,6 +544,7 @@ function normalizeMatch(id, value = {}) {
     updatedAt: value.updatedAt ?? value.createdAt ?? 0,
     startingMemberIds,
     substitutions,
+    staffRosterOrder: normalizeStaffRosterOrder(value.staffRosterOrder),
   };
 }
 
@@ -913,7 +971,7 @@ function renderCheckMode() {
       const onField = getActiveOnFieldCount();
       if (onField < LINEUP_STARTER_COUNT) {
         warnings.push(
-          `出場中の選手が${LINEUP_STARTER_COUNT}人未満です（現在${onField}人）。ベンチの「出場」で交代なしに戻すか、スタメンを見直してください。`,
+          `出場中の選手が${LINEUP_STARTER_COUNT}人未満です（現在${onField}人）。ベンチの「出場」から戻すか、スタメンを見直してください。`,
         );
       }
     }
@@ -924,7 +982,7 @@ function renderCheckMode() {
         if (isAbsentRecord(record)) {
           return false;
         }
-        if (record.isBench && !record.retiredBySubstitution) {
+        if (record.isBench) {
           return false;
         }
         const total = stats.reduce((sum, stat) => sum + (record[stat.key] || 0), 0);
@@ -1326,21 +1384,45 @@ function isBenched(playerId) {
   return Boolean(getPlayerStats(playerId).isBench);
 }
 
-/** 試合中の控え（記録入力なし） */
+/** 試合中のベンチ（記録入力なし） */
 function isMatchBenchReserve(playerId) {
-  const r = getPlayerStats(playerId);
-  return Boolean(r.isBench) && !r.retiredBySubstitution;
-}
-
-/** 途中交代で退場し、これまでの記録のみ保持する選手 */
-function isSubstitutedOut(playerId) {
-  const r = getPlayerStats(playerId);
-  return Boolean(r.isBench) && Boolean(r.retiredBySubstitution);
+  return isBenched(playerId);
 }
 
 /** この試合に欠席（会場にいない） */
 function isAbsent(playerId) {
   return Boolean(getPlayerStats(playerId).absent);
+}
+
+function normalizeLoadedPlayerRecord(record = {}) {
+  if (record.absent) {
+    return { absent: true };
+  }
+  const next = { ...record };
+  delete next.retiredBySubstitution;
+  if (next.isBench) {
+    return {
+      ...next,
+      isBench: true,
+      attackFailure: getAttackFailureFromRecord(next),
+    };
+  }
+  delete next.isBench;
+  return {
+    ...next,
+    attackFailure: getAttackFailureFromRecord(next),
+  };
+}
+
+function sanitizeRecordForSave(record = {}) {
+  if (record.absent) {
+    return { absent: true };
+  }
+  const next = { ...record };
+  delete next.retiredBySubstitution;
+  next.attackFailure = getAttackFailureFromRecord(next);
+  delete next.attack;
+  return next;
 }
 
 function isAbsentRecord(record = {}) {
@@ -1373,6 +1455,7 @@ function getLineupSelectablePlayers(tournament = getSelectedTournament()) {
     return participantIdSet.has(player.id);
   });
 }
+
 
 function getParticipantSelectablePlayers() {
   return players.filter((player) => player.active !== false && !isGuestPlayerId(player.id));
@@ -1419,8 +1502,22 @@ function recordHasAnyStattedPlays(record = {}) {
   return stats.some((s) => (record[s.key] || 0) > 0);
 }
 
+function getStaffOrderedRecordPlayers() {
+  const { starters, benches } = getRosterStartersAndBench();
+  return [...starters, ...benches];
+}
+
 function getVisiblePlayers() {
-  const eligiblePlayers = getMatchPresentPlayers();
+  const withoutGuests = (list) =>
+    state.showGuestPlayers ? list : list.filter((player) => !isGuestPlayerId(player.id));
+  if (isStaff() && state.currentStep === 3) {
+    let ordered = withoutGuests(getStaffOrderedRecordPlayers());
+    if (!state.showActiveOnly) {
+      return ordered;
+    }
+    return ordered.filter((player) => !isMatchBenchReserve(player.id));
+  }
+  let eligiblePlayers = withoutGuests(getMatchPresentPlayers());
   if (!state.showActiveOnly) {
     return eligiblePlayers;
   }
@@ -1510,7 +1607,7 @@ function renderPlayerManagementList() {
 
       const gradeSelect = document.createElement("select");
       gradeSelect.innerHTML = `
-        <option value="">未設定</option>
+        <option value="">学年を選択</option>
         <option value="1">1年 / ①</option>
         <option value="2">2年 / ②</option>
         <option value="3">3年 / ③</option>
@@ -2000,10 +2097,7 @@ function buildViewerPlayerRow(playerId, recordsByMatch, selectedMatchIds, matchM
       if (isAbsentRecord(record)) {
         return false;
       }
-      const recordIsPureBench =
-        Boolean(record.isBench) &&
-        !record.retiredBySubstitution &&
-        !recordHasAnyStattedPlays(record);
+      const recordIsPureBench = Boolean(record.isBench) && !recordHasAnyStattedPlays(record);
       return !recordIsPureBench;
     });
   });
@@ -2020,10 +2114,7 @@ function buildViewerPlayerRow(playerId, recordsByMatch, selectedMatchIds, matchM
     if (isAbsentRecord(record)) {
       return;
     }
-    const recordIsPureBench =
-      Boolean(record.isBench) &&
-      !record.retiredBySubstitution &&
-      !recordHasAnyStattedPlays(record);
+    const recordIsPureBench = Boolean(record.isBench) && !recordHasAnyStattedPlays(record);
     if (recordIsPureBench && participatingMatchIds.has(matchId)) {
       totals.benchMatchCount += 1;
     }
@@ -2032,7 +2123,7 @@ function buildViewerPlayerRow(playerId, recordsByMatch, selectedMatchIds, matchM
         return sum;
       }
       const pure =
-        item?.isBench && !item?.retiredBySubstitution && !recordHasAnyStattedPlays(item ?? {});
+        item?.isBench && !recordHasAnyStattedPlays(item ?? {});
       return sum + (pure ? 0 : item?.attackSuccess || 0);
     }, 0);
     const teamCatch = Object.values(allRecords).reduce((sum, item) => {
@@ -2040,7 +2131,7 @@ function buildViewerPlayerRow(playerId, recordsByMatch, selectedMatchIds, matchM
         return sum;
       }
       const pure =
-        item?.isBench && !item?.retiredBySubstitution && !recordHasAnyStattedPlays(item ?? {});
+        item?.isBench && !recordHasAnyStattedPlays(item ?? {});
       return sum + (pure ? 0 : item?.catch || 0);
     }, 0);
 
@@ -3191,6 +3282,35 @@ function queueAutoSave() {
   }, AUTO_SAVE_DELAY_MS);
 }
 
+function showStatChangeToast({ playerName, label, diff, after }) {
+  const el = statChangeToastEl;
+  if (!el) {
+    return;
+  }
+  const sign = diff > 0 ? `+${diff}` : String(diff);
+  el.textContent = `${playerName}　${label}　${sign}（${after}）`;
+  el.classList.remove("hidden");
+  el.classList.remove("is-visible");
+  void el.offsetWidth;
+  el.classList.add("is-visible");
+
+  if (statChangeToastHideTimerId) {
+    window.clearTimeout(statChangeToastHideTimerId);
+  }
+  if (statChangeToastRemoveTimerId) {
+    window.clearTimeout(statChangeToastRemoveTimerId);
+  }
+
+  statChangeToastHideTimerId = window.setTimeout(() => {
+    el.classList.remove("is-visible");
+    statChangeToastHideTimerId = null;
+    statChangeToastRemoveTimerId = window.setTimeout(() => {
+      el.classList.add("hidden");
+      statChangeToastRemoveTimerId = null;
+    }, 200);
+  }, 1800);
+}
+
 function updateStat(playerId, statKey, diff) {
   if (!isStaff()) {
     return;
@@ -3199,12 +3319,24 @@ function updateStat(playerId, statKey, diff) {
   if (!eligibleIdSet.has(playerId)) {
     return;
   }
-  if (isMatchBenchReserve(playerId) || isSubstitutedOut(playerId)) {
+  if (isMatchBenchReserve(playerId)) {
     return;
   }
   const playerStats = getPlayerStats(playerId);
-  const next = Math.max(0, (playerStats[statKey] || 0) + diff);
+  const before = playerStats[statKey] || 0;
+  const next = Math.max(0, before + diff);
+  if (next === before) {
+    return;
+  }
   state.records[playerId] = { ...playerStats, [statKey]: next };
+  const statDef = stats.find((item) => item.key === statKey);
+  const player = players.find((item) => item.id === playerId);
+  showStatChangeToast({
+    playerName: player?.name ?? "選手",
+    label: statDef?.label ?? statKey,
+    diff,
+    after: next,
+  });
   renderStats();
   refreshValidationState();
   queueAutoSave();
@@ -3248,7 +3380,7 @@ function renderOnFieldCountWarning() {
     return;
   }
   onFieldCountWarningEl.classList.remove("hidden");
-  onFieldCountWarningEl.innerHTML = `<p class="no-margin">⚠️ 出場中の選手が<strong>${LINEUP_STARTER_COUNT}人未満</strong>です（現在<strong>${n}人</strong>）。ベンチの「<strong>出場</strong>」から<strong>交代なしで出場に戻せます</strong>。</p>`;
+  onFieldCountWarningEl.innerHTML = `<p class="no-margin">⚠️ 出場中の選手が<strong>${LINEUP_STARTER_COUNT}人未満</strong>です（現在<strong>${n}人</strong>）。ベンチの「<strong>出場</strong>」から戻せます。</p>`;
 }
 
 function renderLineupIntegrityBanner() {
@@ -3273,7 +3405,7 @@ function renderLineupIntegrityBanner() {
   `;
 }
 
-function getRosterStartersAndBench() {
+function computeRosterStartersAndBenchBase() {
   const match = getSelectedMatchNormalized();
   const starterIdsOrdered = Array.isArray(match?.startingMemberIds)
     ? match.startingMemberIds.filter((id) => getMatchPresentPlayers().some((p) => p.id === id))
@@ -3283,7 +3415,6 @@ function getRosterStartersAndBench() {
   const starters = [];
   const benches = [];
   if (starterIdsOrdered.length === LINEUP_STARTER_COUNT) {
-    // スタメン登録メンバーでも「ベンチ」操作後は控え扱い → ベンチ列へ（交代退場はスタメン列のまま）
     starterIdsOrdered.forEach((id) => {
       const p = activeById[id];
       if (!p) {
@@ -3297,7 +3428,11 @@ function getRosterStartersAndBench() {
     });
     eligiblePlayers.forEach((player) => {
       if (!starterIdsOrdered.includes(player.id)) {
-        benches.push(player);
+        if (isMatchBenchReserve(player.id)) {
+          benches.push(player);
+        } else {
+          starters.push(player);
+        }
       }
     });
   } else {
@@ -3312,13 +3447,103 @@ function getRosterStartersAndBench() {
   return { starters, benches };
 }
 
+function applyStaffRosterOrderToCurrentMatch(staffRosterOrder) {
+  if (!state.selectedMatchId) {
+    return;
+  }
+  currentMatches = currentMatches.map((match) =>
+    match.id === state.selectedMatchId ? { ...match, staffRosterOrder, updatedAt: Date.now() } : match,
+  );
+}
+
+/** ベンチ↔スタメン変更後、列ごとの並びを現状のロスターに合わせて更新 */
+function refreshStaffRosterOrderFromCurrentRoster() {
+  const { starters, benches } = computeRosterStartersAndBenchBase();
+  const prev = normalizeStaffRosterOrder(getSelectedMatchNormalized()?.staffRosterOrder);
+  const starterFallback = starters.map((player) => player.id);
+  const benchFallback = benches.map((player) => player.id);
+  const staffRosterOrder = {
+    starters: sortPlayersByStaffOrderIds(starters, prev.starters.length ? prev.starters : starterFallback).map(
+      (player) => player.id,
+    ),
+    bench: sortPlayersByStaffOrderIds(benches, prev.bench.length ? prev.bench : benchFallback).map(
+      (player) => player.id,
+    ),
+  };
+  applyStaffRosterOrderToCurrentMatch(staffRosterOrder);
+  return staffRosterOrder;
+}
+
+function syncStaffRosterOrderAfterRosterChange(movedPlayerId = "", moveKind = "") {
+  if (!isStaff() || state.currentStep !== 3) {
+    return;
+  }
+  if (movedPlayerId && (moveKind === "toBench" || moveKind === "toStarter")) {
+    const { starters, benches } = computeRosterStartersAndBenchBase();
+    const prev = normalizeStaffRosterOrder(getSelectedMatchNormalized()?.staffRosterOrder);
+    let starterIds = sortPlayersByStaffOrderIds(
+      starters,
+      prev.starters.length ? prev.starters : starters.map((player) => player.id),
+    ).map((player) => player.id);
+    let benchIds = sortPlayersByStaffOrderIds(
+      benches,
+      prev.bench.length ? prev.bench : benches.map((player) => player.id),
+    ).map((player) => player.id);
+    if (moveKind === "toBench") {
+      starterIds = starterIds.filter((id) => id !== movedPlayerId);
+      benchIds = [movedPlayerId, ...benchIds.filter((id) => id !== movedPlayerId)];
+    } else {
+      benchIds = benchIds.filter((id) => id !== movedPlayerId);
+      starterIds = [...starterIds.filter((id) => id !== movedPlayerId), movedPlayerId];
+    }
+    const starterSet = new Set(starters.map((player) => player.id));
+    const benchSet = new Set(benches.map((player) => player.id));
+    starterIds = starterIds.filter((id) => starterSet.has(id));
+    benchIds = benchIds.filter((id) => benchSet.has(id));
+    starters.forEach((player) => {
+      if (!starterIds.includes(player.id)) starterIds.push(player.id);
+    });
+    benches.forEach((player) => {
+      if (!benchIds.includes(player.id)) benchIds.push(player.id);
+    });
+    applyStaffRosterOrderToCurrentMatch({ starters: starterIds, bench: benchIds });
+  } else {
+    refreshStaffRosterOrderFromCurrentRoster();
+  }
+  renderTabs();
+}
+
+function syncPlayerTabFilterButtons() {
+  if (showActiveOnlyButtonEl) {
+    showActiveOnlyButtonEl.textContent = state.showActiveOnly
+      ? "大会参加者全員を表示"
+      : "出場選手だけ表示";
+  }
+  if (toggleGuestVisibilityButtonEl) {
+    toggleGuestVisibilityButtonEl.textContent = state.showGuestPlayers ? "助っ人を非表示" : "助っ人を表示";
+  }
+}
+
+function getRosterStartersAndBench() {
+  const { starters, benches } = computeRosterStartersAndBenchBase();
+  const staffOrder = getSelectedMatchNormalized()?.staffRosterOrder;
+  if (staffOrder && (staffOrder.starters.length || staffOrder.bench.length)) {
+    return {
+      starters: sortPlayersByStaffOrderIds(starters, staffOrder.starters),
+      benches: sortPlayersByStaffOrderIds(benches, staffOrder.bench),
+    };
+  }
+  return { starters, benches };
+}
+
 function getRosterAbsentPlayers() {
   return getTournamentAttendancePlayers().filter((player) => isAbsent(player.id));
 }
 
-function buildRosterRowElement(player, { isStarterColumn, isAbsentColumn = false }) {
+function buildRosterRowElement(player, { isStarterColumn, isAbsentColumn = false, sortable = false }) {
   const row = document.createElement("div");
   row.className = "roster-row";
+  row.dataset.playerId = player.id;
 
   const main = document.createElement("div");
   main.className = "roster-row-main";
@@ -3334,8 +3559,6 @@ function buildRosterRowElement(player, { isStarterColumn, isAbsentColumn = false
   let statusText = "出場中";
   if (isAbsentColumn) {
     statusText = "欠席";
-  } else if (isSubstitutedOut(player.id)) {
-    statusText = "交代退場";
   } else if (isMatchBenchReserve(player.id)) {
     statusText = "ベンチ";
   }
@@ -3353,15 +3576,7 @@ function buildRosterRowElement(player, { isStarterColumn, isAbsentColumn = false
   const recordBtn = document.createElement("button");
   recordBtn.type = "button";
   recordBtn.className = "sub-btn roster-row-btn";
-  if (isSubstitutedOut(player.id)) {
-    recordBtn.textContent = "表示";
-    recordBtn.title = "記録を表示";
-    recordBtn.addEventListener("click", () => {
-      state.selectedPlayerId = player.id;
-      renderTabs();
-      renderStats();
-    });
-  } else if (!isMatchBenchReserve(player.id)) {
+  if (!isMatchBenchReserve(player.id)) {
     recordBtn.textContent = "入力";
     recordBtn.title = "記録を入力";
     recordBtn.addEventListener("click", () => {
@@ -3377,30 +3592,177 @@ function buildRosterRowElement(player, { isStarterColumn, isAbsentColumn = false
   enterBtn.textContent = "出場";
   enterBtn.title = "出場させる";
   if (!isStarterColumn && isMatchBenchReserve(player.id) && isStaff()) {
-    enterBtn.addEventListener("click", () => openSubstitutionConfirmModal(player.id));
+    enterBtn.addEventListener("click", () => openBenchReturnModal(player.id));
   } else {
     enterBtn.classList.add("hidden");
   }
 
-  if (!isAbsentColumn && (!isMatchBenchReserve(player.id) || isSubstitutedOut(player.id))) {
+  if (!isAbsentColumn && !isMatchBenchReserve(player.id)) {
     actions.appendChild(recordBtn);
   }
   if (!isAbsentColumn && !isStarterColumn) {
     actions.appendChild(enterBtn);
   }
 
-  row.append(main, actions);
+  if (sortable) {
+    row.classList.add("roster-row--sortable");
+    const grip = document.createElement("button");
+    grip.type = "button";
+    grip.className = "roster-drag-grip";
+    grip.setAttribute("aria-label", "ドラッグして並び替え");
+    row.append(grip, main, actions);
+  } else if (isAbsentColumn) {
+    row.classList.add("roster-row--with-grip");
+    const grip = document.createElement("span");
+    grip.className = "roster-drag-grip roster-drag-grip--decorative";
+    grip.setAttribute("aria-hidden", "true");
+    row.append(grip, main, actions);
+  } else {
+    row.append(main, actions);
+  }
   return row;
 }
 
+function destroyRosterSortables() {
+  rosterSortableInstances.forEach((instance) => {
+    try {
+      instance.destroy();
+    } catch {
+      /* noop */
+    }
+  });
+  rosterSortableInstances = [];
+}
+
+function collectRosterBodyPlayerIds(bodyEl) {
+  if (!bodyEl) {
+    return [];
+  }
+  return [...bodyEl.querySelectorAll(".roster-row[data-player-id]")].map((row) => row.dataset.playerId).filter(Boolean);
+}
+
+async function persistStaffRosterOrder() {
+  if (!isStaff() || !state.selectedTournamentId || !state.selectedMatchId) {
+    return;
+  }
+  const staffRosterOrder = {
+    starters: collectRosterBodyPlayerIds(startersRosterBodyEl),
+    bench: collectRosterBodyPlayerIds(benchRosterBodyEl),
+  };
+  applyStaffRosterOrderToCurrentMatch(staffRosterOrder);
+  renderTabs();
+
+  if (!db) {
+    return;
+  }
+
+  const patch = {
+    staffRosterOrder,
+    updatedAt: firebase.database.ServerValue.TIMESTAMP,
+  };
+
+  const canReachRemote =
+    typeof SakuraOfflineSync !== "undefined" ? SakuraOfflineSync.isOnline() : navigator.onLine;
+
+  if (!canReachRemote) {
+    if (typeof SakuraOfflineSync !== "undefined") {
+      SakuraOfflineSync.enqueue("match_update", {
+        tournamentId: state.selectedTournamentId,
+        matchId: state.selectedMatchId,
+        staffRosterOrder,
+      });
+    }
+    return;
+  }
+
+  try {
+    await getMatchRef(state.selectedTournamentId, state.selectedMatchId).update(patch);
+    persistRtdbSnapshot();
+  } catch (error) {
+    console.error(error);
+    if (typeof SakuraOfflineSync !== "undefined") {
+      SakuraOfflineSync.enqueue("match_update", {
+        tournamentId: state.selectedTournamentId,
+        matchId: state.selectedMatchId,
+        staffRosterOrder,
+      });
+    }
+  }
+}
+
+function setupRosterSortables() {
+  destroyRosterSortables();
+  if (!isStaff() || state.currentStep !== 3 || typeof Sortable === "undefined") {
+    return;
+  }
+  const configs = [
+    { el: startersRosterBodyEl, bodyClass: "roster-body--starters" },
+    { el: benchRosterBodyEl, bodyClass: "roster-body--bench" },
+  ];
+  configs.forEach(({ el, bodyClass }) => {
+    if (!el || el.querySelector(".roster-empty-message")) {
+      return;
+    }
+    const instance = Sortable.create(el, {
+      animation: 180,
+      easing: "cubic-bezier(0.32, 0.72, 0, 1)",
+      handle: ".roster-drag-grip",
+      filter: ".roster-row-btn",
+      preventOnFilter: true,
+      forceFallback: true,
+      fallbackTolerance: 0,
+      fallbackOnBody: true,
+      fallbackOffset: { x: 0, y: 0 },
+      swapThreshold: 0.55,
+      invertSwap: true,
+      ghostClass: "roster-row-ghost",
+      chosenClass: "roster-row-chosen",
+      dragClass: "roster-row-dragging",
+      fallbackClass: "roster-row-fallback",
+      onStart: (evt) => {
+        const rect = evt.item.getBoundingClientRect();
+        const dragWidth = `${rect.width}px`;
+        requestAnimationFrame(() => {
+          document.querySelectorAll(".roster-row-fallback").forEach((node) => {
+            node.style.width = dragWidth;
+          });
+        });
+        el.classList.add("roster-body--sorting");
+        document.body.classList.add("roster-sort-active");
+        if (navigator.vibrate) {
+          navigator.vibrate(12);
+        }
+      },
+      onEnd: (evt) => {
+        el.classList.remove("roster-body--sorting");
+        document.body.classList.remove("roster-sort-active");
+        if (evt.oldIndex === evt.newIndex) {
+          return;
+        }
+        void persistStaffRosterOrder();
+      },
+    });
+    el.classList.add(bodyClass);
+    rosterSortableInstances.push(instance);
+  });
+}
+
 function renderMatchRosterPanels() {
+  const sortHintEl = document.getElementById("rosterSortHint");
   if (!startersRosterBodyEl || !benchRosterBodyEl || !absentRosterBodyEl || !isStaff()) {
+    destroyRosterSortables();
+    sortHintEl?.classList.add("hidden");
     return;
   }
   if (state.currentStep !== 3) {
+    destroyRosterSortables();
+    sortHintEl?.classList.add("hidden");
     return;
   }
   const metaEl = document.getElementById("step3RosterMatchMeta");
+  if (sortHintEl) {
+    sortHintEl.classList.remove("hidden");
+  }
   if (metaEl) {
     const match = getSelectedMatchNormalized();
     const tournament = getSelectedTournament();
@@ -3420,20 +3782,31 @@ function renderMatchRosterPanels() {
   }
   const { starters, benches } = getRosterStartersAndBench();
   const absentees = getRosterAbsentPlayers();
+  destroyRosterSortables();
   startersRosterBodyEl.innerHTML = "";
   benchRosterBodyEl.innerHTML = "";
   absentRosterBodyEl.innerHTML = "";
-  starters.forEach((player) => startersRosterBodyEl.appendChild(buildRosterRowElement(player, { isStarterColumn: true })));
-  benches.forEach((player) => benchRosterBodyEl.appendChild(buildRosterRowElement(player, { isStarterColumn: false })));
+  starters.forEach((player) =>
+    startersRosterBodyEl.appendChild(
+      buildRosterRowElement(player, { isStarterColumn: true, sortable: true }),
+    ),
+  );
+  benches.forEach((player) =>
+    benchRosterBodyEl.appendChild(
+      buildRosterRowElement(player, { isStarterColumn: false, sortable: true }),
+    ),
+  );
   if (!absentees.length) {
     absentRosterBodyEl.innerHTML = '<p class="helper-message no-margin roster-empty-message">欠席者はいません。</p>';
     renderOnFieldCountWarning();
+    setupRosterSortables();
     return;
   }
   absentees.forEach((player) =>
     absentRosterBodyEl.appendChild(buildRosterRowElement(player, { isStarterColumn: false, isAbsentColumn: true })),
   );
   renderOnFieldCountWarning();
+  setupRosterSortables();
 }
 
 function closeMatchFlowModal() {
@@ -3442,21 +3815,41 @@ function closeMatchFlowModal() {
   }
 }
 
-function buildMatchFlowSubstitutionConfirmBodyHtml(playerLabelEscaped) {
-  return `
-    <div class="match-flow-confirm">
-      <div class="match-flow-confirm-player">
-        <span class="match-flow-confirm-label">選手</span>
-        <span class="match-flow-confirm-name">${playerLabelEscaped}</span>
+function openBenchReturnModal(benchPlayerId) {
+  const benchPlayer = players.find((p) => p.id === benchPlayerId);
+  if (!benchPlayer || !isBenched(benchPlayerId)) {
+    return;
+  }
+  if (getActiveOnFieldCount() >= LINEUP_STARTER_COUNT) {
+    openBenchReturnBlockedModal(benchPlayer);
+    return;
+  }
+  openMatchFlowModal({
+    title: "出場に戻す",
+    bodyHtml: `
+      <div class="match-flow-confirm match-flow-confirm--plain">
+        <div class="match-flow-confirm-player">
+          <span class="match-flow-confirm-label">選手</span>
+          <span class="match-flow-confirm-name">${escapeHtml(formatPlayerLabel(benchPlayer))}</span>
+        </div>
+        <p class="match-flow-desc">スタメン（出場中）に戻します。</p>
       </div>
-      <div class="match-flow-confirm-flow" aria-hidden="true">
-        <span class="match-flow-pill match-flow-pill--dim">ベンチ</span>
-        <span class="match-flow-arrow">→</span>
-        <span class="match-flow-pill match-flow-pill--active">出場中</span>
-      </div>
-      <p class="match-flow-confirm-footnote">途中交代として記録されます</p>
-    </div>
-  `;
+    `,
+    actionButtons: [
+      {
+        label: "キャンセル",
+        onClick: () => closeMatchFlowModal(),
+      },
+      {
+        label: "出場に戻す",
+        primary: true,
+        onClick: () => {
+          applyDirectBenchReturn(benchPlayerId);
+          closeMatchFlowModal();
+        },
+      },
+    ],
+  });
 }
 
 function openMatchFlowModal({ title, bodyHtml, actionButtons }) {
@@ -3486,8 +3879,41 @@ function openMatchFlowModal({ title, bodyHtml, actionButtons }) {
   matchFlowModalEl.classList.remove("hidden");
 }
 
+function openBenchReturnBlockedModal(player) {
+  if (!player) {
+    return;
+  }
+  const onField = getActiveOnFieldCount();
+  openMatchFlowModal({
+    title: "出場に戻せません",
+    bodyHtml: `
+      <div class="match-flow-panel match-flow-panel--caution">
+        <div class="match-flow-capacity-head">
+          <span class="match-flow-capacity-chip">出場中 ${onField}人</span>
+          <span class="match-flow-capacity-sep" aria-hidden="true">/</span>
+          <span class="match-flow-capacity-chip match-flow-capacity-chip--muted">上限 ${LINEUP_STARTER_COUNT}人</span>
+        </div>
+        <div class="match-flow-confirm match-flow-confirm--plain">
+          <div class="match-flow-confirm-player">
+            <span class="match-flow-confirm-label">出場に戻す選手</span>
+            <span class="match-flow-confirm-name">${escapeHtml(formatPlayerLabel(player))}</span>
+          </div>
+        </div>
+        <p class="match-flow-prose-lead">出場中が<strong>${LINEUP_STARTER_COUNT}人</strong>います。</p>
+        <p class="match-flow-desc">先に別の選手をベンチに下げてから、再度お試しください。</p>
+      </div>
+    `,
+    actionButtons: [{ label: "閉じる", onClick: () => closeMatchFlowModal() }],
+  });
+}
+
 function applyDirectBenchReturn(playerId) {
   if (!isStaff()) {
+    return;
+  }
+  const player = players.find((p) => p.id === playerId);
+  if (getActiveOnFieldCount() >= LINEUP_STARTER_COUNT) {
+    openBenchReturnBlockedModal(player);
     return;
   }
   const cur = getPlayerStats(playerId);
@@ -3496,159 +3922,9 @@ function applyDirectBenchReturn(playerId) {
   next.attackFailure = getAttackFailureFromRecord(next);
   state.records[playerId] = recordHasAnyStattedPlays(next) ? next : {};
   state.selectedPlayerId = playerId;
-  renderTabs();
+  syncStaffRosterOrderAfterRosterChange(playerId, "toStarter");
   renderStats();
-  queueAutoSave();
-}
-
-function openSubstitutionConfirmModal(benchPlayerId) {
-  const benchPlayer = players.find((p) => p.id === benchPlayerId);
-  if (!benchPlayer || !isMatchBenchReserve(benchPlayerId)) {
-    return;
-  }
-  const onField = getActiveOnFieldCount();
-  if (onField < LINEUP_STARTER_COUNT) {
-    openMatchFlowModal({
-      title: "出場に戻す",
-      bodyHtml: `
-        <div class="match-flow-confirm match-flow-confirm--plain">
-          <p class="match-flow-lead">出場中は <strong>${onField}人</strong>（目安 ${LINEUP_STARTER_COUNT}人）</p>
-          <p class="match-flow-desc">空きがあるため、<strong>交代の記録なし</strong>で出場に戻せます。</p>
-        </div>
-      `,
-      actionButtons: [
-        {
-          label: "キャンセル",
-          onClick: () => closeMatchFlowModal(),
-        },
-        {
-          label: "出場に戻す",
-          primary: true,
-          onClick: () => {
-            applyDirectBenchReturn(benchPlayerId);
-            closeMatchFlowModal();
-          },
-        },
-      ],
-    });
-    return;
-  }
-  openMatchFlowModal({
-    title: "出場の確認",
-    bodyHtml: buildMatchFlowSubstitutionConfirmBodyHtml(escapeHtml(formatPlayerLabel(benchPlayer))),
-    actionButtons: [
-      {
-        label: "キャンセル",
-        onClick: () => closeMatchFlowModal(),
-      },
-      {
-        label: "出場させる",
-        primary: true,
-        onClick: () => {
-          closeMatchFlowModal();
-          openSubstitutionRecordModal(benchPlayerId);
-        },
-      },
-    ],
-  });
-}
-
-function openSubstitutionRecordModal(benchPlayerId) {
-  const benchPlayer = players.find((p) => p.id === benchPlayerId);
-  if (!benchPlayer) {
-    return;
-  }
-  const outs = getMatchPresentPlayers().filter((p) => !isBenched(p.id));
-  if (!outs.length) {
-    openMatchFlowModal({
-      title: "途中交代を記録できません",
-      bodyHtml:
-        "<div class=\"match-flow-prose\"><p class=\"match-flow-prose-lead\">交代で退場させる出場中の選手がいません。</p></div>",
-      actionButtons: [{ label: "閉じる", onClick: () => closeMatchFlowModal() }],
-    });
-    return;
-  }
-  const selectId = `subOutSelect-${benchPlayerId}`;
-  const timeId = `subTimeInput-${benchPlayerId}`;
-  const bodyHtml = `
-    <div class="match-flow-form">
-      <div class="match-flow-form-group match-flow-form-group--highlight">
-        <span class="match-flow-form-label">出場する選手</span>
-        <span class="match-flow-form-value">${escapeHtml(formatPlayerLabel(benchPlayer))}</span>
-      </div>
-      <label class="match-flow-field">
-        <span class="match-flow-field-label">交代する選手</span>
-        <select id="${selectId}" class="match-flow-select roster-modal-select">
-        ${outs
-          .map(
-            (p) =>
-              `<option value="${escapeHtml(p.id)}">${escapeHtml(formatPlayerLabel(p))}</option>`,
-          )
-          .join("")}
-        </select>
-      </label>
-      <label class="match-flow-field">
-        <span class="match-flow-field-label">交代時刻（任意）</span>
-        <input id="${timeId}" type="text" class="match-flow-input roster-modal-input" placeholder="例: 3期" />
-      </label>
-    </div>
-  `;
-  openMatchFlowModal({
-    title: "途中交代の記録",
-    bodyHtml,
-    actionButtons: [
-      { label: "キャンセル", onClick: () => closeMatchFlowModal() },
-      {
-        label: "記録",
-        primary: true,
-        onClick: () => {
-          const sel = document.getElementById(selectId);
-          const timeEl = document.getElementById(timeId);
-          const outId = sel?.value;
-          if (!outId) {
-            return;
-          }
-          applySubstitutionToState(benchPlayerId, outId, timeEl?.value?.trim() ?? "");
-          closeMatchFlowModal();
-        },
-      },
-    ],
-  });
-}
-
-function applySubstitutionToState(inStudentId, outStudentId, timeLabel) {
-  if (!isStaff()) {
-    return;
-  }
-  const outStats = { ...getPlayerStats(outStudentId) };
-  const retired = {
-    ...outStats,
-    isBench: true,
-    retiredBySubstitution: true,
-  };
-  retired.attackFailure = getAttackFailureFromRecord(retired);
-
-  const inPrev = getPlayerStats(inStudentId);
-  const inNext = inPrev.isBench ? {} : { ...inPrev };
-  inNext.isBench = false;
-  delete inNext.retiredBySubstitution;
-  inNext.attackFailure = getAttackFailureFromRecord(inNext);
-
-  state.records[outStudentId] = retired;
-  state.records[inStudentId] = inNext;
-  state.matchSubstitutions = [
-    ...state.matchSubstitutions,
-    {
-      inStudentId,
-      outStudentId,
-      time: timeLabel || "",
-      timestamp: Date.now(),
-    },
-  ];
-  state.selectedPlayerId = inStudentId;
-  renderTabs();
-  renderStats();
-  refreshValidationState();
+  renderMatchRosterPanels();
   queueAutoSave();
 }
 
@@ -3934,7 +4210,7 @@ function playerHasAttendanceConflict(playerId, nextStatus) {
   if (isAbsentRecord(cur)) {
     return false;
   }
-  return recordHasAnyStattedPlays(cur) || Boolean(cur.isBench && cur.retiredBySubstitution);
+  return recordHasAnyStattedPlays(cur) || Boolean(cur.isBench);
 }
 
 function applyAttendanceDraftToRecords() {
@@ -4068,6 +4344,7 @@ function validateLineupDraftAndProceed() {
   showLineupConfirmSummary();
 }
 
+
 function openMidMatchAddPlayerModal() {
   const uid = `mm-${Date.now()}`;
   const nameId = `midAddName-${uid}`;
@@ -4081,7 +4358,7 @@ function openMidMatchAddPlayerModal() {
         <label>選手名 <input id="${nameId}" type="text" placeholder="例: 田中 太郎" /></label>
         <label>学年（任意）
           <select id="${gradeId}">
-            <option value="">未設定</option>
+            <option value="">選択してください</option>
             <option value="1">1年 / ①</option>
             <option value="2">2年 / ②</option>
             <option value="3">3年 / ③</option>
@@ -4152,27 +4429,56 @@ function hasUnsavedRecordChanges() {
   return saveStatusEl.classList.contains("is-dirty") || saveStatusEl.classList.contains("is-saving");
 }
 
+function syncPlayerTabsLayoutButton() {
+  if (!togglePlayerTabsLayoutButtonEl) {
+    return;
+  }
+  togglePlayerTabsLayoutButtonEl.textContent = state.playerTabsTwoRows ? "1行表示" : "2行表示";
+  togglePlayerTabsLayoutButtonEl.setAttribute(
+    "aria-pressed",
+    state.playerTabsTwoRows ? "true" : "false",
+  );
+}
+
+function createPlayerTabButton(player) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = `tab ${player.id === state.selectedPlayerId ? "active" : ""}`;
+  btn.textContent = isMatchBenchReserve(player.id)
+    ? `${formatPlayerLabel(player)}（ベンチ）`
+    : formatPlayerLabel(player);
+  btn.addEventListener("click", () => {
+    state.selectedPlayerId = player.id;
+    renderTabs();
+    renderStats();
+  });
+  return btn;
+}
+
 function renderTabs() {
   tabsEl.innerHTML = "";
   const visiblePlayers = getVisiblePlayers();
   if (!visiblePlayers.find((player) => player.id === state.selectedPlayerId)) {
     state.selectedPlayerId = visiblePlayers[0]?.id ?? "";
   }
-  visiblePlayers.forEach((player) => {
-    const btn = document.createElement("button");
-    btn.className = `tab ${player.id === state.selectedPlayerId ? "active" : ""}`;
-    btn.textContent = isMatchBenchReserve(player.id)
-      ? `${formatPlayerLabel(player)}（ベンチ）`
-      : isSubstitutedOut(player.id)
-        ? `${formatPlayerLabel(player)}（交代退場）`
-        : formatPlayerLabel(player);
-    btn.addEventListener("click", () => {
-      state.selectedPlayerId = player.id;
-      renderTabs();
-      renderStats();
+  if (state.playerTabsTwoRows && visiblePlayers.length > 0) {
+    tabsEl.className = "tabs tabs--two-rows";
+    const splitAt = Math.ceil(visiblePlayers.length / 2);
+    const row1 = document.createElement("div");
+    row1.className = "tabs-row";
+    const row2 = document.createElement("div");
+    row2.className = "tabs-row";
+    visiblePlayers.forEach((player, index) => {
+      (index < splitAt ? row1 : row2).appendChild(createPlayerTabButton(player));
     });
-    tabsEl.appendChild(btn);
-  });
+    tabsEl.append(row1, row2);
+  } else {
+    tabsEl.className = "tabs";
+    visiblePlayers.forEach((player) => {
+      tabsEl.appendChild(createPlayerTabButton(player));
+    });
+  }
+  syncPlayerTabsLayoutButton();
   renderMatchRosterPanels();
 }
 
@@ -4192,14 +4498,9 @@ function renderStats() {
   }
   const playerStats = getPlayerStats(player.id);
   const reserveBench = isMatchBenchReserve(player.id);
-  const retired = isSubstitutedOut(player.id);
   const benched = isBenched(player.id);
   currentPlayerNameEl.textContent = `選手記録: ${formatPlayerLabel(player)}`;
-  if (retired) {
-    playerBenchStatusEl.textContent = "現在: 交代で退場（記録は表示のみ）";
-  } else {
-    playerBenchStatusEl.textContent = benched ? "現在: ベンチ中" : "現在: 出場中";
-  }
+  playerBenchStatusEl.textContent = benched ? "現在: ベンチ中" : "現在: 出場中";
   toggleBenchButtonEl.textContent = benched ? "出場に戻す" : "ベンチ";
   if (togglePlayerActiveButtonEl) {
     togglePlayerActiveButtonEl.textContent = player.active === false ? "選手を再表示" : "選手を非表示";
@@ -4207,9 +4508,7 @@ function renderStats() {
 
   statsAreaEl.innerHTML = "";
   benchMessageEl.classList.toggle("hidden", !reserveBench);
-  benchMessageEl.textContent = retired
-    ? "この選手は途中交代で退場済みです。これ以降のプレーは集計されません。"
-    : "ベンチ登録中のため、この選手の試合記録入力は非表示です。";
+  benchMessageEl.textContent = "ベンチ登録中のため、この選手の試合記録入力は非表示です。";
 
   if (reserveBench) {
     const preservedTotal = stats.reduce((sum, stat) => sum + (playerStats[stat.key] || 0), 0);
@@ -4219,30 +4518,6 @@ function renderStats() {
         ? "ベンチ中のため入力はできません。すでに付いた記録は保持され、出場に戻すと再び入力できます。"
         : "ベンチ登録中のため、この選手の試合記録入力は非表示です。";
     toggleBenchButtonEl.disabled = !isStaff();
-    renderRecordSummary();
-    renderMatchRosterPanels();
-    renderLineupIntegrityBanner();
-    refreshValidationState();
-    return;
-  }
-
-  if (retired) {
-    let total = 0;
-    stats.forEach((stat) => {
-      const value = playerStats[stat.key] || 0;
-      total += value;
-      const row = document.createElement("div");
-      row.className = "row";
-      const label = document.createElement("span");
-      label.textContent = stat.label;
-      const val = document.createElement("span");
-      val.className = "value";
-      val.textContent = String(value);
-      row.append(label, val);
-      statsAreaEl.appendChild(row);
-    });
-    totalPlaysEl.textContent = String(total);
-    toggleBenchButtonEl.disabled = !isStaff() || retired;
     renderRecordSummary();
     renderMatchRosterPanels();
     renderLineupIntegrityBanner();
@@ -4414,9 +4689,6 @@ function validateCurrentRecords() {
     }
 
     if (playerStats.isBench) {
-      if (playerStats.retiredBySubstitution) {
-        return;
-      }
       return;
     }
 
@@ -4861,14 +5133,7 @@ async function loadRecordsForMatch() {
     }
     clearAutoSaveCountdown();
     const selectedMatch = currentMatches.find((item) => item.id === state.selectedMatchId);
-    state.matchSubstitutions = Array.isArray(selectedMatch?.substitutions)
-      ? selectedMatch.substitutions.map((s) => ({
-          inStudentId: String(s.inStudentId),
-          outStudentId: String(s.outStudentId),
-          time: s.time != null ? String(s.time) : "",
-          timestamp: s.timestamp ?? Date.now(),
-        }))
-      : [];
+    state.matchSubstitutions = [];
     resetMatchSaveMeta(selectedMatch?.updatedAt ?? null);
     setSaveState("オフライン", "キャッシュ上の記録を表示しています", "is-saved");
     renderStats();
@@ -4883,50 +5148,10 @@ async function loadRecordsForMatch() {
   clearAutoSaveCountdown();
   const rawRecords = snapshot.val() ?? {};
   state.records = Object.fromEntries(
-    Object.entries(rawRecords).map(([playerId, record]) => {
-      const safeRecord = record ?? {};
-      if (safeRecord.absent) {
-        return [playerId, { absent: true }];
-      }
-      if (safeRecord.isBench) {
-        if (safeRecord.retiredBySubstitution) {
-          return [
-            playerId,
-            {
-              ...safeRecord,
-              isBench: true,
-              retiredBySubstitution: true,
-              attackFailure: getAttackFailureFromRecord(safeRecord),
-            },
-          ];
-        }
-        return [
-          playerId,
-          {
-            ...safeRecord,
-            isBench: true,
-            attackFailure: getAttackFailureFromRecord(safeRecord),
-          },
-        ];
-      }
-      return [
-        playerId,
-        {
-          ...safeRecord,
-          attackFailure: getAttackFailureFromRecord(safeRecord),
-        },
-      ];
-    }),
+    Object.entries(rawRecords).map(([playerId, record]) => [playerId, normalizeLoadedPlayerRecord(record ?? {})]),
   );
   const selectedMatch = currentMatches.find((item) => item.id === state.selectedMatchId);
-  state.matchSubstitutions = Array.isArray(selectedMatch?.substitutions)
-    ? selectedMatch.substitutions.map((s) => ({
-        inStudentId: String(s.inStudentId),
-        outStudentId: String(s.outStudentId),
-        time: s.time != null ? String(s.time) : "",
-        timestamp: s.timestamp ?? Date.now(),
-      }))
-    : [];
+  state.matchSubstitutions = [];
   resetMatchSaveMeta(selectedMatch?.updatedAt ?? null);
   setSaveState("保存済み", "この試合の最新データを読み込みました", "is-saved");
   renderStats();
@@ -5061,32 +5286,20 @@ function getMatchFormMeta() {
 }
 
 function buildMatchMetaPayload() {
-  return {
+  const match = getSelectedMatchNormalized();
+  const payload = {
     ...getMatchFormMeta(),
     updatedAt: firebase.database.ServerValue.TIMESTAMP,
   };
+  if (match?.staffRosterOrder) {
+    payload.staffRosterOrder = match.staffRosterOrder;
+  }
+  return payload;
 }
 
 function buildRecordsPayload() {
   const records = players.map((player) => {
-    const stats = { ...getPlayerStats(player.id) };
-    if (stats.absent) {
-      return {
-        id: player.id,
-        stats: { absent: true },
-      };
-    }
-    if (stats.isBench && !stats.retiredBySubstitution) {
-      const copy = { ...stats };
-      copy.attackFailure = getAttackFailureFromRecord(copy);
-      delete copy.attack;
-      return {
-        id: player.id,
-        stats: copy,
-      };
-    }
-    stats.attackFailure = getAttackFailureFromRecord(stats);
-    delete stats.attack;
+    const stats = sanitizeRecordForSave(getPlayerStats(player.id));
     return {
       id: player.id,
       stats,
@@ -5186,45 +5399,33 @@ async function createPlayer() {
     return;
   }
   setCreatePlayerMessage("");
-  createPlayerButtonEl.disabled = true;
-  try {
-    const ref = getPlayersRef().push();
-    await ref.set({
-      id: ref.key,
-      name,
-      grade,
-      role,
-      handedness,
-      memo,
-      active: true,
-      order: players.length,
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-    });
-    newPlayerNameEl.value = "";
-    newPlayerGradeEl.value = "";
-    newPlayerRoleEl.value = "";
-    newPlayerHandednessEl.value = "";
-    newPlayerMemoEl.value = "";
-    playerManagementCreateAreaEl.classList.add("hidden");
-    togglePlayerManagementButtonEl.textContent = `+ ${togglePlayerManagementButtonEl.dataset.defaultLabel}`;
-    await loadPlayersFromRealtimeDatabase();
-    state.selectedPlayerId = ref.key;
-    renderTabs();
-    renderStats();
-    setCreatePlayerMessage("選手を追加しました。");
-    setSaveStatus("選手を追加しました");
-  } catch (error) {
-    console.error(error);
-    const code = error?.code ?? "";
-    if (code === "permission-denied") {
-      setCreatePlayerMessage("Firebase の書き込み権限がありません。Database ルールを確認してください。", true);
-    } else {
-      setCreatePlayerMessage(`選手の追加に失敗しました: ${error?.message || error}`, true);
-    }
-  } finally {
-    createPlayerButtonEl.disabled = !isStaff();
-  }
+  const ref = getPlayersRef().push();
+  await ref.set({
+    id: ref.key,
+    name,
+    grade,
+    role,
+    handedness,
+    memo,
+    active: true,
+    order: players.length,
+    createdAt: firebase.database.ServerValue.TIMESTAMP,
+  });
+  newPlayerNameEl.value = "";
+  newPlayerGradeEl.value = "";
+  newPlayerRoleEl.value = "";
+  newPlayerHandednessEl.value = "";
+  newPlayerMemoEl.value = "";
+  playerManagementCreateAreaEl.classList.add("hidden");
+  togglePlayerManagementButtonEl.textContent = `+ ${togglePlayerManagementButtonEl.dataset.defaultLabel}`;
+  await loadPlayersFromRealtimeDatabase();
+  state.selectedPlayerId = ref.key;
+  renderTabs();
+  renderStats();
+  setCreatePlayerMessage("選手を追加しました。");
+  setSaveStatus("選手を追加しました");
 }
+
 
 async function updatePlayerDetails(playerId, nextName, nextGrade, nextRole, nextHandedness, nextMemo) {
   if (!isStaff()) {
@@ -5461,16 +5662,22 @@ function applyBenchStateChange(playerId, nextBench) {
   if (!isStaff()) {
     return;
   }
+  if (!nextBench && getActiveOnFieldCount() >= LINEUP_STARTER_COUNT) {
+    openBenchReturnBlockedModal(players.find((p) => p.id === playerId));
+    return;
+  }
   const current = getPlayerStats(playerId);
   if (nextBench) {
-    state.records[playerId] = { ...current, isBench: true };
+    const next = { ...current, isBench: true };
+    delete next.retiredBySubstitution;
+    state.records[playerId] = next;
   } else {
     const { isBench: _b, ...rest } = current;
     const next = { ...rest };
     next.attackFailure = getAttackFailureFromRecord(next);
     state.records[playerId] = recordHasAnyStattedPlays(next) ? next : {};
   }
-  renderTabs();
+  syncStaffRosterOrderAfterRosterChange(playerId, nextBench ? "toBench" : "toStarter");
   renderStats();
   if (state.currentStep === 3) {
     renderMatchRosterPanels();
@@ -5478,12 +5685,13 @@ function applyBenchStateChange(playerId, nextBench) {
   queueAutoSave();
 }
 
-function openBenchDownWarningModal(playerId) {
+function openBenchDownConfirmModal(playerId) {
   const player = players.find((p) => p.id === playerId);
   if (!player) {
     return;
   }
   const st = getPlayerStats(playerId);
+  const hasStats = recordHasAnyStattedPlays(st);
   const detailRows = stats
     .map((s) => ({ label: s.label, val: st[s.key] || 0 }))
     .filter((x) => x.val > 0)
@@ -5493,6 +5701,21 @@ function openBenchDownWarningModal(playerId) {
     )
     .join("");
   const total = stats.reduce((sum, s) => sum + (st[s.key] || 0), 0);
+  const statsBlock = hasStats
+    ? `<p class="match-flow-panel-tag">試合記録があります</p>
+        <div class="match-flow-info-box">
+          <p>ベンチに下げても<strong>数値は消えず保持</strong>され、出場に戻すと再び入力できます。</p>
+        </div>
+        <div class="match-flow-stat-card">
+          <div class="match-flow-stat-line">
+            <span class="match-flow-stat-label">総プレー</span>
+            <span class="match-flow-stat-num">${total}</span>
+          </div>
+          ${detailRows ? `<div class="match-flow-stat-rows">${detailRows}</div>` : ""}
+        </div>`
+    : `<div class="match-flow-info-box">
+          <p>ベンチに下げると、この試合の<strong>記録入力ができなくなります</strong>。出場に戻すと再び入力できます。</p>
+        </div>`;
   openMatchFlowModal({
     title: "ベンチに下げる",
     bodyHtml: `
@@ -5503,76 +5726,18 @@ function openBenchDownWarningModal(playerId) {
             <span class="match-flow-confirm-name">${escapeHtml(formatPlayerLabel(player))}</span>
           </div>
         </div>
-        <p class="match-flow-panel-tag">試合記録があります</p>
-        <div class="match-flow-info-box">
-          <p>ベンチに下げても<strong>数値は消えず保持</strong>され、出場に戻すと再び入力できます。</p>
-        </div>
-        <div class="match-flow-stat-card">
-          <div class="match-flow-stat-line">
-            <span class="match-flow-stat-label">総プレー</span>
-            <span class="match-flow-stat-num">${total}</span>
-          </div>
-          ${detailRows ? `<div class="match-flow-stat-rows">${detailRows}</div>` : ""}
-        </div>
+        ${statsBlock}
       </div>
     `,
     actionButtons: [
       { label: "キャンセル", onClick: () => closeMatchFlowModal() },
       {
-        label: "それでもベンチに下げる",
+        label: hasStats ? "それでもベンチに下げる" : "ベンチに下げる",
         primary: true,
         danger: true,
         onClick: () => {
           closeMatchFlowModal();
           applyBenchStateChange(playerId, true);
-        },
-      },
-    ],
-  });
-}
-
-function openFieldOverCapacityConfirmModal(playerId) {
-  const player = players.find((p) => p.id === playerId);
-  if (!player) {
-    return;
-  }
-  const onField = getActiveOnFieldCount();
-  openMatchFlowModal({
-    title: "出場人数の確認",
-    bodyHtml: `
-      <div class="match-flow-panel match-flow-panel--caution">
-        <div class="match-flow-capacity-head">
-          <span class="match-flow-capacity-chip">出場中 ${onField}人</span>
-          <span class="match-flow-capacity-sep" aria-hidden="true">/</span>
-          <span class="match-flow-capacity-chip match-flow-capacity-chip--muted">目安 ${LINEUP_STARTER_COUNT}人</span>
-        </div>
-        <p class="match-flow-prose-lead">スタメン枠で<strong>出場中が${LINEUP_STARTER_COUNT}人</strong>いる状態です。記録入力できる出場中は現在 <strong>${onField}人</strong> です。</p>
-        <div class="match-flow-confirm match-flow-confirm--plain">
-          <div class="match-flow-confirm-player">
-            <span class="match-flow-confirm-label">出場に戻す選手</span>
-            <span class="match-flow-confirm-name">${escapeHtml(formatPlayerLabel(player))}</span>
-          </div>
-        </div>
-        <div class="match-flow-capacity-flow" aria-hidden="true">
-          <span class="match-flow-pill match-flow-pill--dim">${onField}人</span>
-          <span class="match-flow-arrow">→</span>
-          <span class="match-flow-pill match-flow-pill--warn">${onField + 1}人</span>
-        </div>
-        <p class="match-flow-capacity-impact">目安（${LINEUP_STARTER_COUNT}人）を超えます。</p>
-        <div class="match-flow-info-box match-flow-info-box--subtle">
-          <p class="match-flow-prose-muted match-flow-info-box-text">先に別の選手をベンチに下げるか、このまま進めるかを選んでください。</p>
-        </div>
-      </div>
-    `,
-    actionButtons: [
-      { label: "キャンセル", onClick: () => closeMatchFlowModal() },
-      {
-        label: "それでも出場に戻す",
-        primary: true,
-        danger: true,
-        onClick: () => {
-          closeMatchFlowModal();
-          applyBenchStateChange(playerId, false);
         },
       },
     ],
@@ -5587,17 +5752,14 @@ function toggleBenchStatus() {
   if (!player) {
     return;
   }
-  if (isSubstitutedOut(player.id)) {
-    return;
-  }
   const current = getPlayerStats(player.id);
   const nextBench = !current.isBench;
-  if (nextBench && recordHasAnyStattedPlays(current)) {
-    openBenchDownWarningModal(player.id);
+  if (nextBench) {
+    openBenchDownConfirmModal(player.id);
     return;
   }
-  if (!nextBench && getActiveOnFieldCount() >= LINEUP_STARTER_COUNT) {
-    openFieldOverCapacityConfirmModal(player.id);
+  if (getActiveOnFieldCount() >= LINEUP_STARTER_COUNT) {
+    openBenchReturnBlockedModal(player);
     return;
   }
   applyBenchStateChange(player.id, nextBench);
@@ -5702,11 +5864,6 @@ async function initializeData() {
       renderAfterOfflineRestore();
       setSaveStatus("接続に失敗したためキャッシュを表示しています");
       initTrashPanelIfNeeded();
-      return;
-    }
-    const code = error?.code ?? "";
-    if (code === "permission-denied") {
-      setSaveState("同期失敗", "Realtime Databaseルールで拒否されています", "is-error");
       return;
     }
     setSaveState("読み込み失敗", String(error?.message || error), "is-error");
@@ -6173,7 +6330,7 @@ async function deleteSelectedMatch() {
       tournamentId: state.selectedTournamentId,
       matchId,
       match: selected
-        ? { ...selected, substitutions: state.matchSubstitutions ?? selected.substitutions ?? [] }
+        ? { ...selected, substitutions: [] }
         : {},
       records: buildRecordsPayload(),
     };
@@ -6252,7 +6409,7 @@ async function saveCurrentMatchRecords(isAutoSave = false) {
     SakuraOfflineSync.enqueue("match_save", {
       tournamentId: state.selectedTournamentId,
       matchId: state.selectedMatchId,
-      matchPatch: { ...getMatchFormMeta(), substitutions: state.matchSubstitutions },
+      matchPatch: { ...getMatchFormMeta(), substitutions: [] },
       records: buildRecordsPayload(),
     });
     state.autoSaveTimerId = null;
@@ -6283,7 +6440,7 @@ async function saveCurrentMatchRecords(isAutoSave = false) {
     const recordsPath = `${DB_PATHS.records}/${state.selectedTournamentId}/${state.selectedMatchId}`;
     const matchPayload = {
       ...buildMatchMetaPayload(),
-      substitutions: state.matchSubstitutions,
+      substitutions: [],
     };
     const updates = {
       [recordsPath]: buildRecordsPayload(),
@@ -6429,7 +6586,6 @@ toggleMatchEditButtonEl.addEventListener("click", () => {
 togglePlayerManagementButtonEl.addEventListener("click", () => {
   toggleCreateArea(playerManagementCreateAreaEl, togglePlayerManagementButtonEl);
   if (!playerManagementCreateAreaEl.classList.contains("hidden")) {
-    setCreatePlayerMessage("");
     newPlayerNameEl.focus();
   }
 });
@@ -6673,6 +6829,12 @@ showActiveOnlyButtonEl.addEventListener("click", () => {
   renderStats();
 });
 
+togglePlayerTabsLayoutButtonEl?.addEventListener("click", () => {
+  state.playerTabsTwoRows = !state.playerTabsTwoRows;
+  savePlayerTabsTwoRowsPreference(state.playerTabsTwoRows);
+  renderTabs();
+});
+
 toggleGuestVisibilityButtonEl?.addEventListener("click", () => {
   state.showGuestPlayers = !state.showGuestPlayers;
   toggleGuestVisibilityButtonEl.textContent = state.showGuestPlayers ? "助っ人を非表示" : "助っ人を表示";
@@ -6822,6 +6984,7 @@ toggleMatchCreateButtonEl.dataset.defaultLabel = "新規試合を追加";
 toggleMatchEditButtonEl.dataset.defaultLabel = "選択中試合を編集";
 togglePlayerManagementButtonEl.dataset.defaultLabel = "選手を登録";
 showStep(1);
+syncPlayerTabFilterButtons();
 login("player", "");
 if (!hasFirebaseConfig) {
   setSaveStatus("Firebase設定値をscript.jsに入力してください");
@@ -6859,12 +7022,8 @@ function wireStaffTutorialOfferSetting() {
     staffTutorialManualEnabledCheckboxEl.checked = o.tutorialManualEnabled !== false;
     syncingFromRemote = false;
   };
-  settingsRef.once("value", applyStaffTutorialSiteSettings, (err) => {
-    console.warn("[script] siteSettings 取得拒否", err);
-  });
-  settingsRef.on("value", applyStaffTutorialSiteSettings, (err) => {
-    console.warn("[script] siteSettings 購読拒否", err);
-  });
+  settingsRef.once("value", applyStaffTutorialSiteSettings);
+  settingsRef.on("value", applyStaffTutorialSiteSettings);
   staffTutorialOfferFirstVisitCheckboxEl.addEventListener("change", () => {
     if (syncingFromRemote) return;
     void settingsRef

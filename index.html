@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="SAKURA LOG" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="icon" href="./SGroupGeneration.png" type="image/png" />
+    <link rel="icon" type="image/png" href="./SGroupGeneration.png" />
     <link rel="apple-touch-icon" href="./SGroupGeneration.png" />
     <!-- iOS: ホーム画面アイコンは更新後に一度削除して再追加してください -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -18,9 +18,9 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Serif+JP:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./style.css?v=sakura-site-v41" />
+    <link rel="stylesheet" href="./style.css?v=sakura-site-v59" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-    <link rel="stylesheet" href="./site-nav.css?v=sakura-site-v24" />
+    <link rel="stylesheet" href="./site-nav.css?v=sakura-site-v25" />
     <link rel="stylesheet" href="./goal-notice-overlay.css" />
     <link rel="stylesheet" href="./match-notice-overlay.css" />
     <link rel="stylesheet" href="./trash-panel.css" />
@@ -34,7 +34,7 @@
           <span class="title-translation">さくらグループ シニア試合記録ログ</span>
         </h1>
         <p class="hero-page-label">ホーム</p>
-        <p class="hero-kicker">SENIER TEAM PERFORMANCE PLATFORM</p>
+        <p class="hero-kicker">SENIOR TEAM PERFORMANCE PLATFORM</p>
         <p class="lead">
           Official Record and Performance Archive
           <span class="lead-translation">公式記録と成績</span>
@@ -45,7 +45,7 @@
       <div class="access-urgent-banner" role="alert">
         <p class="access-urgent-label">重要・CONFIDENTIAL</p>
         <p class="access-urgent-body">
-          このURL・サイトは<strong>チーム関係者のみ</strong>が利用する内部用です。<strong>第三者・他チーム・一般の方への共有・転送・SNS掲載は禁止</strong>です。漏えいが起きた場合は速やかに監督・スタッフへ報告してください。
+          このURLは<strong>チーム関係者専用</strong>です。<strong>第三者・他チーム・SNSへの共有は禁止</strong>です。
         </p>
       </div>
 
@@ -686,6 +686,7 @@
           <section id="step3RostersSection" class="card roster-panel-compact">
             <h2 class="roster-panel-heading">試合記録</h2>
             <p id="step3RosterMatchMeta" class="roster-panel-meta no-margin"></p>
+            <p id="rosterSortHint" class="roster-sort-hint hidden">左の≡をドラッグして並び替えできます（記録画面のみ・閲覧側の順番は変わりません）</p>
             <div id="onFieldCountWarning" class="on-field-count-warning hidden" role="alert"></div>
             <div class="roster-columns">
               <div class="roster-column roster-column--accordion">
@@ -741,14 +742,26 @@
           </section>
 
           <section id="step3TabsSection" class="card">
-            <div class="header-row">
-              <h2>選手タブ</h2>
-              <div class="login-actions compact-actions">
-                <button id="toggleGuestVisibilityButton" class="sub-btn">助っ人を非表示</button>
-                <button id="showActiveOnlyButton" class="sub-btn">出場選手だけ表示</button>
+            <div class="player-tabs-shell">
+              <h2 class="player-tabs-title">選手タブ</h2>
+              <div class="player-tabs-toolbar">
+                <div class="login-actions compact-actions player-tabs-filter-actions">
+                  <button id="toggleGuestVisibilityButton" class="sub-btn">助っ人を表示</button>
+                  <button id="showActiveOnlyButton" class="sub-btn">大会参加者全員を表示</button>
+                </div>
+                <div class="login-actions compact-actions player-tabs-layout-actions">
+                  <button
+                    id="togglePlayerTabsLayoutButton"
+                    type="button"
+                    class="sub-btn"
+                    aria-pressed="false"
+                  >
+                    2行表示
+                  </button>
+                </div>
               </div>
+              <div id="playerTabs" class="tabs"></div>
             </div>
-            <div id="playerTabs" class="tabs"></div>
           </section>
 
           <section id="step3StatsSection" class="card">
@@ -784,7 +797,7 @@
               <label>
                 学年（任意）
                 <select id="newPlayerGrade">
-                  <option value="">未設定</option>
+                  <option value="">選択してください</option>
                   <option value="1">1年 / ①</option>
                   <option value="2">2年 / ②</option>
                   <option value="3">3年 / ③</option>
@@ -813,8 +826,8 @@
               </label>
               <div class="login-actions">
                 <button id="createPlayerButton" class="primary-btn">選手を追加</button>
-              </div>
               <p id="createPlayerError" class="error-message hidden"></p>
+              </div>
             </div>
             <div id="playerManagementList" class="player-list player-mgmt-list"></div>
           </div>
@@ -923,16 +936,18 @@
         </section>
       </div>
     </main>
+    <div id="statChangeToast" class="stat-change-toast hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <script src="https://www.gstatic.com/firebasejs/12.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.12.0/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <script src="./accordion.js"></script>
     <script src="./trash-core.js"></script>
     <script src="./trash-ui.js"></script>
     <script src="./offline-sync-core.js"></script>
     <script src="./offline-ui.js"></script>
-    <script src="./script.js?v=sakura-site-v44"></script>
+    <script src="./script.js?v=sakura-site-v61"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script src="./notify-core.js"></script>
     <script src="./goal-notice-overlay.js"></script>

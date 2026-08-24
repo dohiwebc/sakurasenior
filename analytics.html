@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="SAKURA LOG" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="icon" href="./SGroupGeneration.png" type="image/png" />
+    <link rel="icon" type="image/png" href="./SGroupGeneration.png" />
     <link rel="apple-touch-icon" href="./SGroupGeneration.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -17,7 +17,7 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Serif+JP:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./style.css?v=sakura-site-v41" />
+    <link rel="stylesheet" href="./style.css?v=sakura-site-v59" />
     <script src="https://www.gstatic.com/firebasejs/12.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.12.0/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
@@ -25,7 +25,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="./accordion.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-    <link rel="stylesheet" href="./site-nav.css?v=sakura-site-v24" />
+    <link rel="stylesheet" href="./site-nav.css?v=sakura-site-v25" />
     <link rel="stylesheet" href="./goal-notice-overlay.css" />
     <link rel="stylesheet" href="./match-notice-overlay.css" />
     <link rel="stylesheet" href="./trash-panel.css" />
@@ -426,7 +426,7 @@
           <span class="title-translation">さくらグループ シニア成績分析</span>
         </h1>
         <p class="hero-page-label">分析</p>
-        <p class="hero-kicker">SENIERDATA ANALYSIS PLATFORM</p>
+        <p class="hero-kicker">SENIOR DATA ANALYSIS PLATFORM</p>
         <p class="lead">
           Comprehensive Performance Insight
           <span class="lead-translation">パフォーマンス分析</span>
@@ -437,7 +437,7 @@
       <div class="access-urgent-banner" role="alert">
         <p class="access-urgent-label">重要・CONFIDENTIAL</p>
         <p class="access-urgent-body">
-          このURL・サイトは<strong>チーム関係者のみ</strong>が利用する内部用です。<strong>第三者・他チーム・一般の方への共有・転送・SNS掲載は禁止</strong>です。漏えいが起きた場合は速やかに監督・スタッフへ報告してください。
+          このURLは<strong>チーム関係者専用</strong>です。<strong>第三者・他チーム・SNSへの共有は禁止</strong>です。
         </p>
       </div>
 
@@ -478,7 +478,7 @@
         <button class="accordion-btn" data-target="graphsBody">グラフ表示 <span>＋</span></button>
         <div id="graphsBody" class="hidden">
           <p class="help analytics-graphs-guide">
-            表示する項目は各カード上で選べます。狭い画面ではグラフ下を<strong>横にスワイプ</strong>すると見やすくなります。
+            上部の「集計対象大会」に連動して表示されます。項目は各カード上で選べます。狭い画面ではグラフ下を<strong>横にスワイプ</strong>すると見やすくなります。
           </p>
           <div id="graphGrid" class="graph-grid"></div>
         </div>
@@ -488,10 +488,9 @@
         <button class="accordion-btn" data-target="rankingBody">ランキング <span>＋</span></button>
         <div id="rankingBody" class="hidden">
           <p class="help" style="margin: 0 0 8px">
-            下の「ランキング対象大会」は、このセクションの TOP 5 のみに効きます（上部ツールバーの集計対象大会とは独立して切り替え可能です）。
+            上部の「集計対象大会」に連動して TOP 5 を表示します。
           </p>
-          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-            <label>ランキング対象大会<select id="rankingTournamentSelect"></select></label>
+          <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;align-items:flex-end;">
             <button id="exportRankingButton" type="button" class="analytics-action-btn analytics-action-btn--secondary">
               ランキングを出力
             </button>
@@ -560,7 +559,9 @@
       }
       const app = firebase.initializeApp(firebaseConfig);
       const db = firebase.database();
-      const FALLBACK_PLAYERS = [];
+      const FALLBACK_PLAYERS = [
+        { id: "1", name: "平岡 頼樹" }, { id: "2", name: "山田 興" }, { id: "3", name: "佐藤 陸翔" }, { id: "4", name: "光田 明紗" },
+      ];
 
       const state = {
         tournaments: [],
@@ -575,7 +576,6 @@
         currentFilteredMatchIds: [],
         graphExportTargetId: "",
         graphControls: {},
-        rankingTournamentId: "",
         allTournamentData: {},
       };
 
@@ -589,7 +589,6 @@
         summaryGrid: document.getElementById("summaryGrid"),
         graphGrid: document.getElementById("graphGrid"),
         rankingGrid: document.getElementById("rankingGrid"),
-        rankingTournamentSelect: document.getElementById("rankingTournamentSelect"),
         graphExportOptionList: document.getElementById("graphExportOptionList"),
         graphExportModal: document.getElementById("graphExportModal"),
         cancelGraphExportButton: document.getElementById("cancelGraphExportButton"),
@@ -632,15 +631,19 @@
       function ensureGraphControls() {
         graphDefs.forEach((g) => {
           if (!state.graphControls[g.id]) state.graphControls[g.id] = defaultGraphControl(g.id);
-          let tid = state.graphControls[g.id].tournamentId;
-          if (!tid) tid = defaultTournamentIdForGraph(g.id);
-          if (!graphAllowsAllTournament(g.id) && tid === "all") {
-            tid =
-              state.selectedTournamentId && state.selectedTournamentId !== "all"
-                ? state.selectedTournamentId
-                : state.tournaments[0]?.id || "";
-          }
-          state.graphControls[g.id].tournamentId = tid;
+        });
+      }
+
+      /** 上部「集計対象大会」に全グラフの tournamentId を合わせる */
+      function syncGraphControlsToMainTournament() {
+        const tid = state.selectedTournamentId || "all";
+        graphDefs.forEach((g) => {
+          if (!state.graphControls[g.id]) state.graphControls[g.id] = defaultGraphControl(g.id);
+          state.graphControls[g.id].tournamentId = graphAllowsAllTournament(g.id)
+            ? tid
+            : tid === "all"
+              ? "all"
+              : tid;
         });
       }
 
@@ -780,9 +783,8 @@
         });
         state.selectedTournamentId = state.tournaments[0]?.id ?? "all";
         el.tournamentSelect.value = state.selectedTournamentId;
-        state.rankingTournamentId = state.selectedTournamentId;
-        renderSharedTournamentSelectors();
         ensureGraphControls();
+        syncGraphControlsToMainTournament();
       }
       async function loadTournamentData(tournamentId) {
         if (!tournamentId) { state.matches = []; state.recordsByMatch = {}; return; }
@@ -848,8 +850,7 @@
         el.tournamentSelect.addEventListener("change", async () => {
           state.selectedTournamentId = el.tournamentSelect.value;
           await loadTournamentData(state.selectedTournamentId);
-          state.rankingTournamentId = state.selectedTournamentId;
-          renderSharedTournamentSelectors();
+          syncGraphControlsToMainTournament();
           recalcAll();
         });
         el.stageFilter.addEventListener("change", () => { state.stageFilter = el.stageFilter.value; recalcAll(); });
@@ -859,11 +860,6 @@
           const before = state.playerFilter;
           applyPlayerFilterSearch();
           if (state.playerFilter !== before) recalcAll();
-        });
-        el.rankingTournamentSelect.addEventListener("change", async () => {
-          state.rankingTournamentId = el.rankingTournamentSelect.value;
-          renderSharedTournamentSelectors();
-          recalcAll();
         });
         el.cancelGraphExportButton.addEventListener("click", () => el.graphExportModal.classList.add("hidden"));
         el.confirmGraphExportButton.addEventListener("click", exportGraphTarget);
@@ -891,21 +887,6 @@
           const pdfInput = document.querySelector('input[name="rankingExportFormat"][value="pdf"]');
           if (pdfInput) pdfInput.checked = true;
         }
-      }
-
-      function renderSharedTournamentSelectors() {
-        el.rankingTournamentSelect.innerHTML = "";
-        const allOption = document.createElement("option");
-        allOption.value = "all";
-        allOption.textContent = "全大会";
-        el.rankingTournamentSelect.appendChild(allOption);
-        state.tournaments.forEach((t) => {
-          const option = document.createElement("option");
-          option.value = t.id;
-          option.textContent = t.name;
-          el.rankingTournamentSelect.appendChild(option);
-        });
-        el.rankingTournamentSelect.value = state.rankingTournamentId || state.selectedTournamentId || "all";
       }
 
       function renderOpponentFilter() {
@@ -998,6 +979,7 @@
       }
       function recalcAll() {
         ensureGraphControls();
+        syncGraphControlsToMainTournament();
         const filteredMatches = getFilteredMatches();
         const selectedMatchIds = filteredMatches.map((m) => m.id);
         state.currentFilteredMatchIds = selectedMatchIds;
@@ -1052,7 +1034,6 @@
             <div class="graph-head">
               <strong>📍 ${def.title}</strong>
               <div class="graph-actions ${isMulti ? "trend-actions" : ""}">
-                <select class="mini" data-graph-tournament="${def.id}"></select>
                 ${def.id === "g5" ? "" : `<select class="mini" data-graph-player="${def.id}"></select>`}
                 ${isMulti
                   ? `<span class="metric-picker-label metric-picker-label--trend">項目（複数選択・最大7）</span><div class="metric-check-wrap" data-graph-metric-check-wrap="${def.id}">${metricChecks}</div>`
@@ -1068,21 +1049,6 @@
           catch (err) {
             document.getElementById(def.id).innerHTML = `<p class="warn">グラフ生成エラー <button type="button" class="analytics-action-btn analytics-action-btn--secondary" data-retry="${def.id}">リトライ</button></p>`;
           }
-        });
-        el.graphGrid.querySelectorAll("[data-graph-tournament]").forEach((sel) => {
-          sel.addEventListener("change", async () => {
-            const gid = sel.dataset.graphTournament;
-            state.graphControls[gid].tournamentId = sel.value;
-            const shouldSyncMainTournament = !["g1", "g2"].includes(gid) && sel.value && sel.value !== "all";
-            if (shouldSyncMainTournament && sel.value !== state.selectedTournamentId) {
-              state.selectedTournamentId = sel.value;
-              el.tournamentSelect.value = sel.value;
-              await loadTournamentData(sel.value);
-              state.rankingTournamentId = sel.value;
-              renderSharedTournamentSelectors();
-            }
-            recalcAll();
-          });
         });
         el.graphGrid.querySelectorAll("[data-graph-player]").forEach((sel) => {
           sel.addEventListener("change", () => {
@@ -1123,30 +1089,8 @@
       }
 
       function fillGraphControlSelectors(card, graphId) {
-        const tSel = card.querySelector(`[data-graph-tournament="${graphId}"]`);
         const pSel = card.querySelector(`[data-graph-player="${graphId}"]`);
         const ctl = state.graphControls[graphId] || defaultGraphControl(graphId);
-        const includeAllTournament = ["g1", "g2", "g5"].includes(graphId);
-        tSel.innerHTML = "";
-        if (includeAllTournament) {
-          const option = document.createElement("option");
-          option.value = "all";
-          option.textContent = "全大会";
-          tSel.appendChild(option);
-        }
-        state.tournaments.forEach((t) => {
-          const option = document.createElement("option");
-          option.value = t.id;
-          option.textContent = t.name;
-          tSel.appendChild(option);
-        });
-        if (!includeAllTournament && ctl.tournamentId === "all") {
-          ctl.tournamentId =
-            state.selectedTournamentId && state.selectedTournamentId !== "all"
-              ? state.selectedTournamentId
-              : state.tournaments[0]?.id || "";
-        }
-        tSel.value = ctl.tournamentId || state.selectedTournamentId || (includeAllTournament ? "all" : "");
         if (pSel) {
           pSel.innerHTML = "";
           const allPlayerOption = document.createElement("option");
@@ -1530,7 +1474,7 @@
       }
       function drawByOpponentChart(container) {
         const ctl = state.graphControls.g4 || defaultGraphControl("g4");
-        if (!ctl.tournamentId || ctl.tournamentId === "all") { container.innerHTML = '<p class="loading">大会を1つ選択してください</p>'; return; }
+        if (!ctl.tournamentId || ctl.tournamentId === "all") { container.innerHTML = '<p class="loading">上部で大会を1つ選択してください</p>'; return; }
         const td = state.allTournamentData[ctl.tournamentId];
         if (!td) { container.innerHTML = '<p class="loading">データがありません</p>'; return; }
         const matches = td.matches || [];
@@ -1687,8 +1631,8 @@
       }
       function getRankingExportSections() {
         const ids =
-          state.rankingTournamentId && state.rankingTournamentId !== "all"
-            ? [state.rankingTournamentId]
+          state.selectedTournamentId && state.selectedTournamentId !== "all"
+            ? [state.selectedTournamentId]
             : state.tournaments.map((t) => t.id);
         const rankingRows = buildRowsForTournaments(ids);
         const specs = [
@@ -1730,7 +1674,7 @@
       }
 
       function buildRankingCsv() {
-        const tournamentLabel = getTournamentNameById(state.rankingTournamentId || state.selectedTournamentId);
+        const tournamentLabel = getTournamentNameById(state.selectedTournamentId);
         const lines = [[`ランキング`, tournamentLabel], []];
         getRankingExportSections().forEach((sec) => {
           lines.push([sec.title]);
@@ -1788,7 +1732,7 @@
       async function exportRankingData() {
         const selectedFormat = document.querySelector('input[name="rankingExportFormat"]:checked')?.value || "pdf";
         const format = isMobileViewportForRankingExport() ? "pdf" : selectedFormat;
-        const tournamentName = getTournamentNameById(state.rankingTournamentId || state.selectedTournamentId);
+        const tournamentName = getTournamentNameById(state.selectedTournamentId);
         const baseName = sanitizeFileName(`ランキング_${tournamentName}`);
 
         if (format === "csv") {
